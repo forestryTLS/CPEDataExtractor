@@ -33,7 +33,7 @@ def filtering():
     
     # Wait until the dropdown menu is visible
     wait = WebDriverWait(driver, 10)
-    dropdown_menu = wait.until(EC.visibility_of_element_located((By.XPATH, "//span[text()='Catalog']/../../..//input[@role='combobox']")))
+    dropdown_menu = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')))
     dropdown_menu.click()
     
     # List of options you want to select
@@ -42,6 +42,8 @@ def filtering():
     # Iterate over the options you want to select
     for option in options_to_select:
         # Type the name of the option to filter the dropdown menu
+        dropdown_menu = driver.find_element(By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')
+        dropdown_menu.clear()
         dropdown_menu.send_keys(option)
 
         # Create the regex pattern
@@ -49,12 +51,15 @@ def filtering():
         # Wait until the desired option is visible and select it
         try:
             # Define a custom expected condition that waits for an element matching the regex
-            
-            wait.until(lambda driver: re.search(pattern, driver.page_source))
+            print("TRY FIND")
+            # wait.until(lambda driver: re.search(pattern, driver.page_source))
+            time.sleep(5)
+            print("FOUND")
 
             # Then send the ENTER key
-            dropdown_menu.send_keys(Keys.ARROW_DOWN)
-            dropdown_menu.send_keys(Keys.ENTER)
+            catalog_filter = driver.find_element(By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')
+            catalog_filter.send_keys(Keys.ARROW_DOWN)
+            catalog_filter.send_keys(Keys.ENTER)
 
         except (TimeoutException, KeyboardInterrupt):
             print("DRIVER PAGE SOURCE IS", driver.page_source)
@@ -64,7 +69,6 @@ def filtering():
         # Clear the input for the next iteration
         input("Press Enter in this terminal to continue")
         
-        dropdown_menu.clear()
 
     
     
