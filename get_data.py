@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import re
+from bs4 import BeautifulSoup
 import time
 
 driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
@@ -25,8 +26,21 @@ def login():
     wait = WebDriverWait(driver, 30)
     wait.until(EC.url_contains('enrollments'))
 
-@print_decorator
+def check_page_source(driver, option):
+    # Parse the page source with BeautifulSoup
+    soup = BeautifulSoup(driver.page_source, 'html.parser')
+    
+    # Extract the body and get its text
+    body = soup.body
+    text = body.get_text()
+    
+    # Search for the pattern in the text
+    pattern = re.escape(option) + '.+'
+    return re.search(pattern, text) is not None
 
+# Wait until the text is found in the body
+
+@print_decorator
 def filtering():
     button = driver.find_element(By.XPATH, "//button[@data-automation='AnalyticsPage__Show__Filters__Button']")
     button.click()
@@ -46,15 +60,8 @@ def filtering():
         dropdown_menu.clear()
         dropdown_menu.send_keys(option)
 
-        # Create the regex pattern
-        pattern = re.escape(option) + '.+'
-        # Wait until the desired option is visible and select it
         try:
-            # Define a custom expected condition that waits for an element matching the regex
-            print("TRY FIND")
-            # wait.until(lambda driver: re.search(pattern, driver.page_source))
-            time.sleep(5)
-            print("FOUND")
+            wait.until(lambda driver: check_page_source(driver, option))
 
             # Then send the ENTER key
             catalog_filter = driver.find_element(By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')
@@ -64,11 +71,6 @@ def filtering():
         except (TimeoutException, KeyboardInterrupt):
             print("DRIVER PAGE SOURCE IS", driver.page_source)
             print("OPTION NOT FOUND IN TIME", option)
-            
-
-        # Clear the input for the next iteration
-        input("Press Enter in this terminal to continue")
-        
 
     
     
