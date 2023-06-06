@@ -9,6 +9,8 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException,
 import re
 from bs4 import BeautifulSoup
 import time
+import pandas as pd
+import csv
 
 driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
 
@@ -51,7 +53,8 @@ def filtering():
     dropdown_menu.click()
     
     # List of options you want to select
-    options_to_select = ["CACE - ", "CNR - ", "CSRP - ", "CVA - ", "EFO - ", "FCM - ", "HTC - ", "FHM - ", " FSTB - ", "SMS - ", "TWS - ", "ZCBS - "]
+    # options_to_select = ["CACE - ", "CNR - ", "CSRP - ", "CVA - ", "EFO - ", "FCM - ", "HTC - ", "FHM - ", "FSTB - ", "SMS - ", "TWS - ", "ZCBS - "]
+    options_to_select = ["CVA - "] 
 
     # Iterate over the options you want to select
     for option in options_to_select:
@@ -72,9 +75,95 @@ def filtering():
             print("DRIVER PAGE SOURCE IS", driver.page_source)
             print("OPTION NOT FOUND IN TIME", option)
 
+@print_decorator
+def filter_enrollment_date():
+    # Toggle the tab to filter enrollment dates
+    element = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CLASS_NAME, "css-10dz9lm-toggleDetails__summary"))
+    )
     
+    element.click()
+    input("Please apply any additional filters and hit apply. Once you see the table loaded, please hit enter in this terminal")
+
+def check_and_click_next_button():
+    """ If the next button exists, click it and return True, else return False"""
+    try:
+        # Find the button with the specific class
+        next_button = driver.find_element(By.XPATH, "//button[@data-direction='next']")
+
+        # Check if the button is displayed and enabled
+        if next_button.is_displayed() and next_button.is_enabled():
+            # Press enter on the button
+            next_button.send_keys(Keys.ENTER)
+            return True
+        else:
+            return False
+    except NoSuchElementException:
+        return False
+        
+def extract_table_data(table_data):
+    """ Extract aria-labels or text, assumes page has a table """
+    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'table')))
+    soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+    table = soup.find('table') 
+    tbody = table.find('tbody')
+    for row in tbody.find_all('tr'):
+
+        row_data = {}
+        # iterate over each column in the row
+        for td in row.find_all('td'):
+            # getting the column's label from data-testid attribute
+            if 'data-testid' in td.attrs:
+                label = td['data-testid']
+                span_with_aria_labels = td.find_all('span', attrs={'aria-label': True})
+                # if there are multiple spans with aria-label
+                if len(span_with_aria_labels) > 1:
+                    for i, span in enumerate(span_with_aria_labels):
+                        value = span['aria-label']
+                        row_data[label + '_' + str(i)] = value  # unique column name with index
+                else:
+                    value = td.text
+                    row_data[label] = value
+
+        table_data.append(row_data)
+    return table_data
+
+@print_decorator
+def extract_enrollment_table():
+    table_data = []
     
+    while True:
+        table_data = extract_table_data(table_data)
+        if check_and_click_next_button() == False:
+            break
+    # write the data to a CSV file
+    print("TABLE DATA IS", table_data)
+    with open('table_datafull5.csv', 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, table_data[0].keys())
+
+        writer.writeheader()
+        writer.writerows(table_data)
+
+@print_decorator
+def extract_users():
+    """ Extract users from past week (default)"""
+    table_data = []
+    driver.get('https://courses.cpe.ubc.ca/new_analytics/users')
+    
+    while True:
+        table_data = extract_table_data(table_data)
+        if check_and_click_next_button() == False:
+            break
+    with open('user_data.csv', 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, table_data[0].keys())
+
+        writer.writeheader()
+        writer.writerows(table_data)
+
 if __name__ == "__main__":
     login()
     filtering()
-    
+    filter_enrollment_date()
+    extract_enrollment_table()
+    extract_users()
