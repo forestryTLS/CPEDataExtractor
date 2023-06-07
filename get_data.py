@@ -104,7 +104,7 @@ def check_and_click_next_button():
 def extract_table_data(table_data):
     """ Extract aria-labels or text, assumes page has a table """
     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'table')))
-    soup = BeautifulSoup(driver.page_source, 'html.parser')
+    soup = BeautifulSoup(driver.page_source.encode("utf-8"), 'html.parser')
 
     table = soup.find('table') 
     tbody = table.find('tbody')
@@ -138,12 +138,12 @@ def extract_enrollment_table():
         if check_and_click_next_button() == False:
             break
     # write the data to a CSV file
-    print("TABLE DATA IS", table_data)
-    with open('table_datafull5.csv', 'w', newline='') as csvfile:
+    with open('table_datafull5.csv', 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, table_data[0].keys())
 
         writer.writeheader()
         writer.writerows(table_data)
+
 
 @print_decorator
 def extract_users():
@@ -155,11 +155,17 @@ def extract_users():
         table_data = extract_table_data(table_data)
         if check_and_click_next_button() == False:
             break
-    with open('user_data.csv', 'w', newline='') as csvfile:
+
+    with open('user_data.csv', 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, table_data[0].keys())
 
         writer.writeheader()
         writer.writerows(table_data)
+    
+    df = pd.read_csv('user_data.csv', encoding='utf-8')
+    print(df)
+
+
 
 if __name__ == "__main__":
     login()
