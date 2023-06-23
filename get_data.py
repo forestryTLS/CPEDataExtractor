@@ -8,11 +8,12 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import re
 from bs4 import BeautifulSoup
-import time
 import pandas as pd
-import csv
 import argparse
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
 
@@ -67,8 +68,6 @@ def check_page_source(driver, option):
             return True
     
     return False
-
-
 
 @print_decorator
 def filtering(courses):
@@ -202,7 +201,7 @@ def extract_enrollment_table():
     df = pd.DataFrame(table_data)
     
     df = convert_numeric_columns(df)
-    append_data_to_excel('table_datafull7.xlsx', df)
+    append_data_to_excel(os.environ.get("RAW_DATA_PATH") + "enrollment.xlsx", df)
 
 
 @print_decorator
@@ -226,7 +225,7 @@ def extract_users(manually_filter_users):
     df = convert_numeric_columns(df)
 
     # Append data to Excel file
-    append_data_to_excel('user_data.xlsx', df)
+    append_data_to_excel(os.environ.get("RAW_DATA_PATH") + 'user_data.xlsx', df)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='This Script uses Selenium to login to Canvas Catalog and extracts enrollments + users')
