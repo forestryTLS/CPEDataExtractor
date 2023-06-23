@@ -11,9 +11,8 @@ from bs4 import BeautifulSoup
 import time
 import pandas as pd
 import csv
+import argparse
 import os
-
-# Todo, for users -> only check based on full name?
 
 driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
 
@@ -50,22 +49,29 @@ def login():
     wait.until(EC.url_contains('enrollments'))
 
 def check_page_source(driver, option):
-    # Parse the page source with BeautifulSoup
     soup = BeautifulSoup(driver.page_source, 'html.parser')
     
-    # Extract the body and get its text
-    body = soup.body
-    text = body.get_text()
+    # Find all <div> elements with the "title" attribute
+    divs_with_title = soup.find_all('div', {'title': True})
     
-    # Search for the pattern in the text
-    # pattern = re.escape(option) + '.+'
-    pattern = re.escape(option)
-    return re.search(pattern, text) is not None
+    # Iterate over the matching <div> elements
+    for div in divs_with_title:
+        text = div.get_text()
+        
+        # Search for the pattern in the text
+        pattern = re.escape(option)
+        found = re.search(pattern, text)
+        
+        if found:
+            print("FOUND:", text)
+            return True
+    
+    return False
 
-# Wait until the text is found in the body
+
 
 @print_decorator
-def filtering():
+def filtering(courses):
     button = driver.find_element(By.XPATH, "//button[@data-automation='AnalyticsPage__Show__Filters__Button']")
     button.click()
     
@@ -74,13 +80,22 @@ def filtering():
     dropdown_menu = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')))
     dropdown_menu.click()
     
-    # List of options you want to select
-    # options_to_select = ["CACE - ", "CNR - ", "CSRP - ", "CVA - ", "EFO - ", "FCM - ", "HTC - ", "FHM - ", "FSTB - ", "SMS - ", "TWS - ", "ZCBS - "]
-    options_to_select = ["CVA - "] 
-    full_option_name = {"CVA - ": "CVA - Online Micro-Certificate: Climate Vulnerability & Adaptation",
+    # Add " - " to courses since that differentiates a program from a course
+    options_to_select = [course + " - " for course in courses]
+
+    full_option_name = {
                         "CACE - ": "CACE - Online Micro-Certificate: Climate Action and Community Engagement",
                         "CNR - ": 'CNR - Online Micro-Certificate: Co-Management of Natural Resources',
-                        "CSRP - ": "CSRP - Online Micro-Certificate: Communication Strategies for Resource Practitioners Micro-Certificate",
+                        "CSRP - ": "CSRP - Online Micro-Certificate: Communication Strategies for Resource Practitioners",
+                        "CVA - ": "CVA - Online Micro-Certificate: Climate Vulnerability & Adaptation",
+                        "EFO - ": "EFO - Online Micro-Certificate: Environmental Footprints of Organizations",
+                        "FCM - ": "FCM - Online Micro-Certificate: Forest Carbon Management",
+                        "HTC - ": "HTC - Online Micro-Certificate: Hybrid Timber Construction",
+                        "FHM - ": "FHM - Online Micro-Certificate: Forest Health Management",
+                        "FSTB - ": "FSTB - Online Micro-Certificate: Fire Safety for Timber Buildings",
+                        "SMS - ": "SMS - Online Micro-Certificate: Strategic Management for Sustainability",
+                        "TWS - ": "TWS - Online Micro-Certificate: Tall Wood Structures",
+                        "ZCBS - ": "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions"
                         }
 
     # Iterate over the options you want to select
@@ -98,11 +113,17 @@ def filtering():
             catalog_filter.send_keys(Keys.ENTER)
 
         except (TimeoutException, KeyboardInterrupt):
-            print("DRIVER PAGE SOURCE IS", driver.page_source)
             print("OPTION NOT FOUND IN TIME", option)
 
 @print_decorator
-def filter_enrollment_date():
+def filter_enrollment_date(manually_filter):
+    if not manually_filter:
+        apply = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[form="analytics-filter-form"]'))
+        )
+        apply.click()
+        return
+
     # Toggle the tab to filter enrollment dates
     element = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.CLASS_NAME, "css-10dz9lm-toggleDetails__summary"))
@@ -185,9 +206,15 @@ def extract_enrollment_table():
 
 
 @print_decorator
-def extract_users():
-    table_data = []
+def extract_users(manually_filter_users):
     driver.get('https://courses.cpe.ubc.ca/new_analytics/users')
+
+    if manually_filter_users:
+        button = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'button[data-automation="AnalyticsPage__Show__Filters__Button"]')))
+        button.click()
+        input("Please apply any additional filters and hit apply. Once you see the table loaded, please hit enter in this terminal")
+
+    table_data = []
     
     while True:
         table_data = extract_table_data(table_data)
@@ -202,8 +229,19 @@ def extract_users():
     append_data_to_excel('user_data.xlsx', df)
     
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='This Script uses Selenium to login to Canvas Catalog and extracts enrollments + users')
+    
+    # Optional command line arguments
+    parser.add_argument('--mfe', action='store_true', help='Manually Filter Enrollments. Include this argument if you want the bot to pause when filtering enrollments')
+    parser.add_argument('--mfu', action='store_true', help='Manually Filter Users. Include this argument if you want the bot to pause when filtering users')
+    valid_courses = ["CACE", "CNR", "CSRP", "CVA", "EFO", "FCM", "HTC", "FHM", "FSTB", "SMS", "TWS", "ZCBS"] 
+    parser.add_argument('--courses', nargs='+', choices=valid_courses, default=valid_courses, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
+    
+    # Parse the command line arguments
+    args = parser.parse_args()
+    
     login()
-    filtering()
-    filter_enrollment_date()
+    filtering(args.courses)
+    filter_enrollment_date(args.mfe)
     extract_enrollment_table()
-    extract_users()
+    extract_users(args.mfu)
