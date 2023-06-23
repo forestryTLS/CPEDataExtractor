@@ -46,6 +46,10 @@ def append_data_to_excel(filename, df_new_data):
 @print_decorator
 def login():
     driver.get("https://courses.cpe.ubc.ca/new_analytics/enrollments")
+    # Click the login button
+    link = driver.find_element(By.XPATH, '//a[@href="http://ubccpe.instructure.com/login/saml"]')
+    link.click()
+
     wait = WebDriverWait(driver, 30)
     wait.until(EC.url_contains('enrollments'))
 
