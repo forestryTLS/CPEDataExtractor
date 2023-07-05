@@ -50,7 +50,7 @@ def login():
     link = driver.find_element(By.XPATH, '//a[@href="http://ubccpe.instructure.com/login/saml"]')
     link.click()
 
-    wait = WebDriverWait(driver, 30)
+    wait = WebDriverWait(driver, 90)
     wait.until(EC.url_contains('enrollments'))
 
 def check_page_source(driver, option):
@@ -75,11 +75,13 @@ def check_page_source(driver, option):
 
 @print_decorator
 def filtering(courses):
-    button = driver.find_element(By.XPATH, "//button[@data-automation='AnalyticsPage__Show__Filters__Button']")
+    wait = WebDriverWait(driver, 10)
+    button = wait.until(EC.visibility_of_element_located((By.XPATH,  "//button[@data-automation='Filter__Show__Filters__Button']")))
+
+    # button = driver.find_element(By.XPATH, "//button[@data-automation='AnalyticsPage__Show__Filters__Button']")
     button.click()
     
     # Wait until the dropdown menu is visible
-    wait = WebDriverWait(driver, 10)
     dropdown_menu = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')))
     dropdown_menu.click()
     
@@ -87,6 +89,7 @@ def filtering(courses):
     options_to_select = [course + " - " for course in courses]
 
     full_option_name = {
+                        "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
                         "CACE - ": "CACE - Online Micro-Certificate: Climate Action and Community Engagement",
                         "CNR - ": 'CNR - Online Micro-Certificate: Co-Management of Natural Resources',
                         "CSRP - ": "CSRP - Online Micro-Certificate: Communication Strategies for Resource Practitioners",
@@ -122,7 +125,7 @@ def filtering(courses):
 def filter_enrollment_date(manually_filter):
     if not manually_filter:
         apply = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[form="analytics-filter-form"]'))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[form="filter-panel-form"]'))
         )
         apply.click()
         return
@@ -139,6 +142,7 @@ def check_and_click_next_button():
     """ If the next button exists, click it and return True, else return False"""
     # Find the span element containing the buttons
     try:
+        # <div dir="ltr" data-automation="Pagination" role="navigation" class="css-oikz3d-view-pagination"><span dir="lt
         pagination_span = driver.find_element(By.CLASS_NAME, "css-ighgvd-view--inlineBlock-pagination__pages")
 
         # Find the button with aria-current="page"
@@ -205,6 +209,7 @@ def extract_enrollment_table():
     df = pd.DataFrame(table_data)
     
     df = convert_numeric_columns(df)
+    print("DF DATA IS", df.head())
     append_data_to_excel(os.environ.get("RAW_DATA_PATH") + "enrollment.xlsx", df)
 
 
@@ -213,7 +218,7 @@ def extract_users(manually_filter_users):
     driver.get('https://courses.cpe.ubc.ca/new_analytics/users')
 
     if manually_filter_users:
-        button = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'button[data-automation="AnalyticsPage__Show__Filters__Button"]')))
+        button = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'button[data-automation="Filter__Show__Filters__Button"]')))
         button.click()
         input("Please apply any additional filters and hit apply. Once you see the table loaded, please hit enter in this terminal")
 
@@ -237,7 +242,7 @@ if __name__ == "__main__":
     # Optional command line arguments
     parser.add_argument('--mfe', action='store_true', help='Manually Filter Enrollments. Include this argument if you want the bot to pause when filtering enrollments')
     parser.add_argument('--mfu', action='store_true', help='Manually Filter Users. Include this argument if you want the bot to pause when filtering users')
-    valid_courses = ["CACE", "CNR", "CSRP", "CVA", "EFO", "FCM", "HTC", "FHM", "FSTB", "SMS", "TWS", "ZCBS"] 
+    valid_courses = ["CBBD", "CACE", "CNR", "CSRP", "CVA", "EFO", "FCM", "HTC", "FHM", "FSTB", "SMS", "TWS", "ZCBS"] 
     parser.add_argument('--courses', nargs='+', choices=valid_courses, default=valid_courses, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
     
     # Parse the command line arguments
