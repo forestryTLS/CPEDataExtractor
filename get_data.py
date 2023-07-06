@@ -13,6 +13,8 @@ import argparse
 import os
 from dotenv import load_dotenv
 
+import distribute
+
 load_dotenv()
 
 driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
@@ -25,6 +27,8 @@ def print_decorator(func):
         print(f"{'+'*15}FINISHED {func.__name__}{'+'*15}")
         return result
     return wrapper
+
+
 
 def append_data_to_excel(filename, df_new_data):
     if os.path.isfile(filename):
@@ -41,6 +45,7 @@ def append_data_to_excel(filename, df_new_data):
         df_combined = df_new_data
 
     df_combined.to_excel(filename, index=False)
+    return df_new_data
 
 
 @print_decorator
@@ -209,8 +214,7 @@ def extract_enrollment_table():
     df = pd.DataFrame(table_data)
     
     df = convert_numeric_columns(df)
-    print("DF DATA IS", df.head())
-    append_data_to_excel(os.environ.get("RAW_DATA_PATH") + "enrollment.xlsx", df)
+    return append_data_to_excel(os.environ.get("RAW_DATA_PATH_ENROLLMENTS"), df)
 
 
 @print_decorator
@@ -234,7 +238,7 @@ def extract_users(manually_filter_users):
     df = convert_numeric_columns(df)
 
     # Append data to Excel file
-    append_data_to_excel(os.environ.get("RAW_DATA_PATH") + 'user_data.xlsx', df)
+    append_data_to_excel(os.environ.get("RAW_DATA_PATH_USERS"), df)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='This Script uses Selenium to login to Canvas Catalog and extracts enrollments + users')
@@ -251,5 +255,7 @@ if __name__ == "__main__":
     login()
     filtering(args.courses)
     filter_enrollment_date(args.mfe)
-    extract_enrollment_table()
+    enrollment_df = extract_enrollment_table()
     extract_users(args.mfu)
+
+    distribute.distribute_enrollment_data(enrollment_df, os.environ.get("RAW_DATA_PATH_USERS"), os.environ.get("PROCESSED_DATA_PATH"))
