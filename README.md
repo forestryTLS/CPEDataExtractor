@@ -19,7 +19,9 @@ for more information.
 - Inside 0EnrollmentHistory, all the data that was distributed to the various sheets is saved as a history.
 - Users are identified by their email. Emails are used to cross check the user_data.xlsx sheet and processed_data.xlsx. If the emails do not match, they are not considered the same user
 and a new row will be created in the sheet. Else the program will write data to empty columns in the existing row.
- 
+
+# Debugging Tips
+- Since Canvas Catlog's page is entirely dynamic, you may run into issues when trying to inspect the page and the element disappears. To get around this you can use this command in the inspect terminal ```setTimeout(function(){debugger;}, 5000)``` which will pause the screen after 5 seconds.
 
   
 
