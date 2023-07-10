@@ -19,8 +19,26 @@ load_dotenv()
 
 driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
 
+# NOTE: KEEP THIS VALID_COURSES AND FULL_OPTION_NAME UP TO DATE
+VALID_COURSES = ["CBBD", "CACE", "CNR", "CSRP", "CVA", "EFO", "FCM", "HTC", "FHM", "FSTB", "SMS", "TWS", "ZCBS"] 
+FULL_OPTION_NAME = {
+                    "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
+                    "CACE - ": "CACE - Online Micro-Certificate: Climate Action and Community Engagement",
+                    "CNR - ": 'CNR - Online Micro-Certificate: Co-Management of Natural Resources',
+                    "CSRP - ": "CSRP - Online Micro-Certificate: Communication Strategies for Resource Practitioners",
+                    "CVA - ": "CVA - Online Micro-Certificate: Climate Vulnerability & Adaptation",
+                    "EFO - ": "EFO - Online Micro-Certificate: Environmental Footprints of Organizations",
+                    "FCM - ": "FCM - Online Micro-Certificate: Forest Carbon Management",
+                    "HTC - ": "HTC - Online Micro-Certificate: Hybrid Timber Construction",
+                    "FHM - ": "FHM - Online Micro-Certificate: Forest Health Management",
+                    "FSTB - ": "FSTB - Online Micro-Certificate: Fire Safety for Timber Buildings",
+                    "SMS - ": "SMS - Online Micro-Certificate: Strategic Management for Sustainability",
+                    "TWS - ": "TWS - Online Micro-Certificate: Tall Wood Structures",
+                    "ZCBS - ": "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions"
+                    }
+
 def print_decorator(func):
-    # This just prints the function name before and after
+    # This just prints the function name before and after, useful for debugging
     def wrapper(*args, **kwargs):
         print(f"{'-'*15}STARTING {func.__name__}{'-'*15}")
         result = func(*args, **kwargs)
@@ -28,9 +46,8 @@ def print_decorator(func):
         return result
     return wrapper
 
-
-
 def append_data_to_excel(filename, df_new_data):
+    """ Take in an excel and combine the data, then remove duplicates prioriziting keeping the existing data """
     if os.path.isfile(filename):
         try:
             df_old = pd.read_excel(filename)
@@ -38,7 +55,7 @@ def append_data_to_excel(filename, df_new_data):
             print(f"Error reading the Excel file: {e}")
             df_combined = df_new_data
         else:
-            df_combined = (pd.concat([df_old, df_new_data], ignore_index=True, sort =False)
+            df_combined = (pd.concat([df_old, df_new_data], ignore_index=True, sort=False)
                 .drop_duplicates(keep='first'))
 
     else:
@@ -50,15 +67,18 @@ def append_data_to_excel(filename, df_new_data):
 
 @print_decorator
 def login():
+    """ Open the url which will prompt a login """
     driver.get("https://courses.cpe.ubc.ca/new_analytics/enrollments")
     # Click the login button
     link = driver.find_element(By.XPATH, '//a[@href="http://ubccpe.instructure.com/login/saml"]')
     link.click()
 
-    wait = WebDriverWait(driver, 90)
+    SECONDS_TO_LOGIN = 90
+    wait = WebDriverWait(driver, SECONDS_TO_LOGIN)
     wait.until(EC.url_contains('enrollments'))
 
 def check_page_source(driver, option):
+    """ This returns true if the enrollment filtering option has shown up on the page """
     soup = BeautifulSoup(driver.page_source, 'html.parser')
     
     # Find all <div> elements with the "title" attribute
@@ -80,10 +100,10 @@ def check_page_source(driver, option):
 
 @print_decorator
 def filtering(courses):
+    """ This clicks the filter button on the enrollments page and searches for all the courses then selects them """
     wait = WebDriverWait(driver, 10)
     button = wait.until(EC.visibility_of_element_located((By.XPATH,  "//button[@data-automation='Filter__Show__Filters__Button']")))
 
-    # button = driver.find_element(By.XPATH, "//button[@data-automation='AnalyticsPage__Show__Filters__Button']")
     button.click()
     
     # Wait until the dropdown menu is visible
@@ -93,22 +113,6 @@ def filtering(courses):
     # Add " - " to courses since that differentiates a program from a course
     options_to_select = [course + " - " for course in courses]
 
-    full_option_name = {
-                        "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
-                        "CACE - ": "CACE - Online Micro-Certificate: Climate Action and Community Engagement",
-                        "CNR - ": 'CNR - Online Micro-Certificate: Co-Management of Natural Resources',
-                        "CSRP - ": "CSRP - Online Micro-Certificate: Communication Strategies for Resource Practitioners",
-                        "CVA - ": "CVA - Online Micro-Certificate: Climate Vulnerability & Adaptation",
-                        "EFO - ": "EFO - Online Micro-Certificate: Environmental Footprints of Organizations",
-                        "FCM - ": "FCM - Online Micro-Certificate: Forest Carbon Management",
-                        "HTC - ": "HTC - Online Micro-Certificate: Hybrid Timber Construction",
-                        "FHM - ": "FHM - Online Micro-Certificate: Forest Health Management",
-                        "FSTB - ": "FSTB - Online Micro-Certificate: Fire Safety for Timber Buildings",
-                        "SMS - ": "SMS - Online Micro-Certificate: Strategic Management for Sustainability",
-                        "TWS - ": "TWS - Online Micro-Certificate: Tall Wood Structures",
-                        "ZCBS - ": "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions"
-                        }
-
     # Iterate over the options you want to select
     for option in options_to_select:
         # Type the name of the option to filter the dropdown menu
@@ -117,7 +121,7 @@ def filtering(courses):
         dropdown_menu.send_keys(option)
 
         try:
-            wait.until(lambda driver: check_page_source(driver, full_option_name[option]))
+            wait.until(lambda driver: check_page_source(driver, FULL_OPTION_NAME[option]))
             # Then send the ENTER key
             catalog_filter = driver.find_element(By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')
             catalog_filter.send_keys(Keys.ARROW_DOWN)
@@ -128,6 +132,7 @@ def filtering(courses):
 
 @print_decorator
 def filter_enrollment_date(manually_filter):
+    """ If manually_filter, this clicks the date filter button and waits for user input before continuing """
     if not manually_filter:
         apply = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[form="filter-panel-form"]'))
@@ -147,12 +152,12 @@ def check_and_click_next_button():
     """ If the next button exists, click it and return True, else return False"""
     # Find the span element containing the buttons
     try:
-        # <div dir="ltr" data-automation="Pagination" role="navigation" class="css-oikz3d-view-pagination"><span dir="lt
         pagination_span = driver.find_element(By.CLASS_NAME, "css-ighgvd-view--inlineBlock-pagination__pages")
 
         # Find the button with aria-current="page"
         current_button = pagination_span.find_element(By.CSS_SELECTOR,"button[aria-current='page']")
 
+        # Find the sibling button if it exists
         next_button = current_button.find_element(By.XPATH, "following-sibling::button")
         if next_button:
             print("CLICKED NEXT")
@@ -165,6 +170,10 @@ def check_and_click_next_button():
         return False
         
 def convert_numeric_columns(df):
+    """
+    An issue with excel is that it will automatically convert numeric data so the raw data and excel data will be considered different,
+    Convert the numeric columns so the values compare correctly.
+    """
     for column in df.columns:
         try:
             df[column] = pd.to_numeric(df[column], errors='raise')
@@ -174,7 +183,7 @@ def convert_numeric_columns(df):
     return df
 
 def extract_table_data(table_data):
-    """ Extract aria-labels or text, assumes page has a table """
+    """ Extract aria-labels or text, assumes page has a table, uses the data-testid property as the column header """
     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'table')))
     soup = BeautifulSoup(driver.page_source.encode("utf-8"), 'html.parser')
 
@@ -203,6 +212,7 @@ def extract_table_data(table_data):
 
 @print_decorator
 def extract_enrollment_table():
+    """ This accumulates the data on each page """
     table_data = []
     
     while True:
@@ -219,6 +229,10 @@ def extract_enrollment_table():
 
 @print_decorator
 def extract_users(manually_filter_users):
+    """ 
+    This will go to the users page, and optionally pause to allow for manual user filtering
+    It will then go through each page and put the data in the excel
+    """
     driver.get('https://courses.cpe.ubc.ca/new_analytics/users')
 
     if manually_filter_users:
@@ -246,8 +260,7 @@ if __name__ == "__main__":
     # Optional command line arguments
     parser.add_argument('--mfe', action='store_true', help='Manually Filter Enrollments. Include this argument if you want the bot to pause when filtering enrollments')
     parser.add_argument('--mfu', action='store_true', help='Manually Filter Users. Include this argument if you want the bot to pause when filtering users')
-    valid_courses = ["CBBD", "CACE", "CNR", "CSRP", "CVA", "EFO", "FCM", "HTC", "FHM", "FSTB", "SMS", "TWS", "ZCBS"] 
-    parser.add_argument('--courses', nargs='+', choices=valid_courses, default=valid_courses, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
+    parser.add_argument('--courses', nargs='+', choices=VALID_COURSES, default=VALID_COURSES, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
     
     # Parse the command line arguments
     args = parser.parse_args()

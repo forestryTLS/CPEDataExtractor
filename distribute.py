@@ -8,6 +8,7 @@ load_dotenv()
 
 REGISTRATIONS_FOLDER_PATH = os.environ.get("REGISTRATIONS_FOLDER_PATH")
 
+# NOTE: Make sure to keep this updated
 EXCELS = {
     "CBBD": ("Circular Bioeconomy Business Development - Registrations.xlsx"),
     "CACE": ("Climate Action and Community Engagement - Registrations.xlsx"),
@@ -23,6 +24,9 @@ EXCELS = {
     "TWS": ("Tall Wood Structures - Registrations.xlsx"),
     "ZCBS": ("Zero Carbon Building Solutions - Registrations.xlsx"),
 }
+
+# This is where to expect the header to be in the excel, necessary for finding the right column for data
+HEADER_ROW = 2
 
 def add_date_to_filename(filename):
     date_str = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -50,9 +54,10 @@ Grant amount to give -> Received FSG?, Grant Amount
 2. Use account_name + product_name_0 to find the correct sheet to use (excel name and sheet session)
 3. Check sheet if user (based on email) already exists save the row index if yes 
 4. Append the data to the end of the sheet, or write to the exiting row
-
 """
+
 def extract_user_data(row, user_data_row, user_grant_row):
+    """ This puts combines the data from the various sheets into the format we want """
     email = row['student_name_1'].split(' ')[2]
 
     data = {
@@ -80,6 +85,7 @@ def extract_user_data(row, user_data_row, user_grant_row):
     return data
 
 def find_sheet(row):
+    """ This finds the correct sheet based on the user's program, assumes the correct sheet and excel exists """
     course_code = row['account_name'].split(" ")[0]
     course_info = row['product_name_0'].split(" ")
     course_session = " ".join(course_info[-2:])
@@ -90,10 +96,9 @@ def find_sheet(row):
 
 def search_email_in_sheet(sheet, email):
     """ Return the row index where email is found, -1 if not found """
-    header_row = 2 # Headers for excel must be on row 2
     email_column = None
 
-    for cell in sheet[header_row]:
+    for cell in sheet[HEADER_ROW]:
         if cell.value == 'Email Address':
             email_column = cell.column_letter
             break
@@ -108,21 +113,21 @@ def search_email_in_sheet(sheet, email):
     return -1
 
 def find_empty_row(sheet):
-    """ Starting form row 3 of the sheet, find a row where the first column is empty"""
+    """ Starting from row 3 of the sheet, find a row where the first column is empty"""
     for row_index, row in enumerate(sheet.iter_rows(min_row=3), start=3):
         if row[0].value is None:
             return row_index
     return sheet.max_row + 1
 
 def insert_or_append_row(sheet, data, existing_row):
+    """ If the row exists (not -1) then add data to columns that are empty, else append to end of sheet """
     row = existing_row if existing_row != -1 else None
-    header_row = 2
     if row is None:
         row = find_empty_row(sheet)
         
     for col_header, value in data.items():
         col_index = None
-        for cell in sheet[header_row]: # Find the column where the current header is
+        for cell in sheet[HEADER_ROW]: # Find the column where the current header is
             if cell.value == col_header:
                 col_index = cell.column
                 break
@@ -133,6 +138,7 @@ def insert_or_append_row(sheet, data, existing_row):
                 target_cell.value = value
             
 def distribute_enrollment_data(df_enrollment, path_to_user_data, path_to_grant_data):
+    """ Loops through all the enrollment users, and distributes their data to the correct sheet """
     df_user_data = pd.read_excel(path_to_user_data)
     df_grant_data = pd.read_excel(path_to_grant_data)
     all_rows = []
@@ -163,5 +169,6 @@ def distribute_enrollment_data(df_enrollment, path_to_user_data, path_to_grant_d
     print("DONE DISTRIBUTING DATA")
 
 if __name__ == '__main__':
+    # This is mainly for testing, call python get_data.py instead
     df = pd.read_excel(os.environ.get("RAW_DATA_PATH_ENROLLMENTS"))
     distribute_enrollment_data(df, os.environ.get("RAW_DATA_PATH_USERS"), os.environ.get("PROCESSED_DATA_PATH"))
