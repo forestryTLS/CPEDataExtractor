@@ -8,6 +8,26 @@ These instructions below are using Unix commands.
 6. Run the program with ```python get_data.py```
 
 # Notes
+- I use Edge as my default browser, but if you use Chrome as your browser, you may run into issues. Try changing the selenium webdriver in get_data.py to the following:
+```
+from selenium import webdriver
+from selenium.webdriver.edge.service import Service as EdgeService
+from webdriver_manager.microsoft import EdgeChromiumDriverManager
+
+driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()))
+```
+If that doesn't work, try adding the following:
+```
+from selenium.webdriver.chrome.options import Options
+
+options = Options()
+options.add_argument("--remote-debugging-port=9222")
+
+driver = webdriver.Chrome(
+    service=ChromeService(ChromeDriverManager().install()),
+    options=options
+)
+```
 - You must keep the following constants updated in the code: inside get_data.py: ```VALID_COURSES, FULL_OPTION_NAME```. Inside distribute.py ```EXCELS```
 - You can pass in the following arguments into get_data.py: ```--mfe, --mfu, --courses```. Example: ```python get_data.py --mfe --mfu --courses CVA CNR```.
 That command will pause at the filtering stage for enrollments and users so you can customize it. It also only searches for the courses CVA and CNR. Use ```python get_data.py --help```
@@ -22,9 +42,3 @@ and a new row will be created in the sheet. Else the program will write data to 
 
 # Debugging Tips
 - Since Canvas Catlog's page is entirely dynamic, you may run into issues when trying to inspect the page and the element disappears. To get around this you can use this command in the inspect terminal ```setTimeout(function(){debugger;}, 5000)``` which will pause the screen after 5 seconds.
-
-  
-
-
-
-
