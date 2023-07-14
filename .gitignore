@@ -2,3 +2,4 @@ env/
 Registrations/
 .env
 Raw_data/
+__pycache__/
