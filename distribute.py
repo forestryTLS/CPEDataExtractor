@@ -3,6 +3,7 @@ import pandas as pd
 from dotenv import load_dotenv
 import os
 from datetime import datetime
+import re
 
 load_dotenv()
 
@@ -120,6 +121,10 @@ def find_empty_row(sheet):
     return sheet.max_row + 1
 
 def insert_or_append_row(sheet, data, existing_row):
+
+    # check if a table exists in the sheet (will use the first table listed if more than one)
+    table = sheet.tables[list(sheet.tables.keys())[0]] if len(sheet.tables) > 0 else None
+
     """ If the row exists (not -1) then add data to columns that are empty, else append to end of sheet """
     row = existing_row if existing_row != -1 else None
     if row is None:
@@ -136,6 +141,15 @@ def insert_or_append_row(sheet, data, existing_row):
             target_cell = sheet.cell(row=row, column=col_index)
             if target_cell.value is None:
                 target_cell.value = value
+    
+    # if a table exists and the current row was appended, update table range (ref)
+    if(existing_row == -1 and table is not None):
+        table_start, table_end = table.ref.split(":")
+
+        table_end_col = re.search("[A-Z]+", table_end).group()
+
+        # update table ref to include new data in table
+        table.ref = f"{table_start}:{table_end_col}{row}"
             
 def distribute_enrollment_data(df_enrollment, path_to_user_data, path_to_grant_data):
     """ Loops through all the enrollment users, and distributes their data to the correct sheet """

@@ -1,6 +1,4 @@
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -17,7 +15,29 @@ import distribute
 
 load_dotenv()
 
-driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
+# get selected browser from environment variables, default to Chrome
+browser = os.environ.get("BROWSER")
+
+if browser == "Edge":
+    from webdriver_manager.microsoft import EdgeChromiumDriverManager
+    from selenium.webdriver.edge.service import Service as EdgeService
+
+    driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()))
+elif browser == "Firefox":
+    from webdriver_manager.firefox import GeckoDriverManager
+    from selenium.webdriver.firefox.service import Service as FirefoxService
+
+    driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
+elif browser == "Chromium":
+    from webdriver_manager.core.utils import ChromeType
+    from selenium.webdriver.chrome.service import Service as ChromiumService
+    
+    driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()))
+else:
+    from webdriver_manager.chrome import ChromeDriverManager
+    from selenium.webdriver.chrome.service import Service as ChromeService
+
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
 
 # NOTE: KEEP THIS VALID_COURSES AND FULL_OPTION_NAME UP TO DATE
 VALID_COURSES = ["CBBD", "CACE", "CNR", "CSRP", "CVA", "EFO", "FCM", "HTC", "FHM", "FSTB", "SMS", "TWS", "ZCBS"] 
