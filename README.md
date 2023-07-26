@@ -1,3 +1,26 @@
+# Notes
+- After the program finishes, check the terminal output to make sure there were no errors.
+- By default, Canvas Catalog filters by the last week
+- The program should open a new browser everytime forcing you to log in if everything is set up correctly.
+- Try playing around with the various browsers, you may need to install one. Ideally either Edge or Chrome works.
+If that doesn't work, try adding the following (with the correct browser):
+```
+from selenium.webdriver.chrome.options import Options
+
+options = Options()
+options.add_argument("--remote-debugging-port=9222")
+
+driver = webdriver.Chrome(
+    service=ChromeService(ChromeDriverManager().install()),
+    options=options
+)
+```
+- You must keep the following constants updated in the code: inside get_data.py: ```VALID_COURSES, FULL_OPTION_NAME```. Inside distribute.py ```EXCELS```
+- You can pass in the following arguments into get_data.py: ```--mfe, --mfu, --courses```. Example: ```python get_data.py --mfe --mfu --courses CVA CNR```.
+That command will pause at the filtering stage for enrollments and users so you can customize it. It also only searches for the courses CVA and CNR. Use ```python get_data.py --help```
+for more information.
+- Each excel sheet must have the right sheet names such as 2023 Fall. If a user registers for a program that doesn't have a sheet created for it yet, the program will fail to add that piece of data make sure to check the terminal after the program runs.
+
 # Setup
 ## Unix
 1. Install with ```git clone https://github.com/WillKang01/CPEDataExtractor.git```.
@@ -25,27 +48,6 @@
 5. Set .env paths.
    - Open the `.env` file using a text editor and update the paths as required.
 6. Run the command `python get_data.py` to execute the program.
-
-# Notes
-- The program should open a new browser everytime forcing you to log in if everything is set up correctly.
-- Try playing around with the various browsers, you may need to install one. Ideally either Edge or Chrome works.
-If that doesn't work, try adding the following (with the correct browser):
-```
-from selenium.webdriver.chrome.options import Options
-
-options = Options()
-options.add_argument("--remote-debugging-port=9222")
-
-driver = webdriver.Chrome(
-    service=ChromeService(ChromeDriverManager().install()),
-    options=options
-)
-```
-- You must keep the following constants updated in the code: inside get_data.py: ```VALID_COURSES, FULL_OPTION_NAME```. Inside distribute.py ```EXCELS```
-- You can pass in the following arguments into get_data.py: ```--mfe, --mfu, --courses```. Example: ```python get_data.py --mfe --mfu --courses CVA CNR```.
-That command will pause at the filtering stage for enrollments and users so you can customize it. It also only searches for the courses CVA and CNR. Use ```python get_data.py --help```
-for more information.
-- Each excel sheet must have the right sheet names such as 2023 Fall. If a user registers for a program that doesn't have a sheet created for it yet, the program will fail.
 
 # Data Created
 - Inside 0RawData, it creates a running list of all the enrollments, and users so far. Duplicate rows are avoided by checking if every column entry is the same.
