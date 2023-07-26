@@ -8,24 +8,23 @@
 6. Run the program with ```python get_data.py```
 
 ## Windows
-1. Install with `git clone https://github.com/WillKang01/CPEDataExtractor.git`.
+1. Clone repository.
    - Open the Windows Terminal or Command Prompt.
    - Install Git if it is not already installed.
    - Run the command `git clone https://github.com/WillKang01/CPEDataExtractor.git` to clone the repository.
-2. Go to the new folder `cd CPEDataExtractor` then install a virtual environment such as with `python3 -m venv env` and `source env/bin/activate`.
+2. Activate virtual environment.
    - Change the directory to the `CPEDataExtractor` folder using the command `cd CPEDataExtractor`.
    - Create a virtual environment using the command `python -m venv env`.
    - Activate the virtual environment using the command `.\env\Scripts\activate`.
-3. Install the requirements with `pip install -r requirements.txt`.
+3. Install requirements.
    - Make sure you have Python and pip installed.
    - Run the command `pip install -r requirements.txt` to install the required packages.
-4. Copy `.env.example` into `.env` with `cp .env.example .env`.
+4. Environment Variables.
    - In Windows, you can use the `copy` command instead of `cp`.
    - Run the command `copy .env.example .env` to copy the file.
-5. Update `.env` with the correct paths.
+5. Set .env paths.
    - Open the `.env` file using a text editor and update the paths as required.
-6. Run the program with `python get_data.py`.
-   - Run the command `python get_data.py` to execute the program.
+6. Run the command `python get_data.py` to execute the program.
 
 # Notes
 - Set the browser variable to a browser that you don't use as your default. Such as if you use Chrome as your default, set browser to Edge.
