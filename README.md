@@ -10,7 +10,7 @@ These instructions below are using Unix commands.
 # Notes
 - Set the browser variable to a browser that you don't use as your default. Such as if you use Chromium as your default, set browser to Edge.
 - The program should open a new browser everytime forcing you to log in if everything is set up correctly.
-If that doesn't work, try adding the following:
+If that doesn't work, try adding the following (with the correct browser):
 ```
 from selenium.webdriver.chrome.options import Options
 
