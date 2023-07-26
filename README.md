@@ -27,8 +27,8 @@
 6. Run the command `python get_data.py` to execute the program.
 
 # Notes
-- Set the browser variable to a browser that you don't use as your default. Such as if you use Chrome as your default, set browser to Edge.
 - The program should open a new browser everytime forcing you to log in if everything is set up correctly.
+- Try playing around with the various browsers, you may need to install one. Ideally either Edge or Chrome works.
 If that doesn't work, try adding the following (with the correct browser):
 ```
 from selenium.webdriver.chrome.options import Options
@@ -55,3 +55,32 @@ and a new row will be created in the sheet. Else the program will write data to 
 
 # Debugging Tips
 - Since Canvas Catlog's page is entirely dynamic, you may run into issues when trying to inspect the page and the element disappears. To get around this you can use this command in the inspect terminal ```setTimeout(function(){debugger;}, 5000)``` which will pause the screen after 5 seconds.
+
+# Create Windows Desktop Shortcut
+To create a clickable desktop icon on Windows to run your Python script, you can follow these steps:
+
+1. Create a Batch Script:
+   - Open a text editor like Notepad.
+   - Copy and paste the following commands into the text editor:
+
+     ```batch
+     @echo off
+     cd C:\path\to\your\Python\script\directory
+     call env\Scripts\activate
+     python get_data.py %*
+     pause
+     ```
+
+   - Replace `C:\path\to\your\Python\script\directory` with the actual path to your Python script's directory. For example, `C:\Users\YourUsername\CPEDataExtractor`.
+
+   - Save the file with a `.bat` extension, for example, `rundataextractor.bat`.
+
+2. Create a Desktop Shortcut:
+   - Right-click the .bat file
+   - Click "Create shortcut"
+   - Drag it into your Desktop
+  
+3. Adding optional arguments
+   - Right click the shortcut created and select "Properties"
+   - In the target field, append the arguments you want then hit Apply and OK
+   - example: <path>\rundataextractor.bat --mfe --courses CACE CNR CVA
