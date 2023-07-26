@@ -8,7 +8,7 @@ These instructions below are using Unix commands.
 6. Run the program with ```python get_data.py```
 
 # Notes
-- Set the browser variable to a browser that you don't use as your default. Such as if you use Chromium as your default, set browser to Edge.
+- Set the browser variable to a browser that you don't use as your default. Such as if you use Chrome as your default, set browser to Edge.
 - The program should open a new browser everytime forcing you to log in if everything is set up correctly.
 If that doesn't work, try adding the following (with the correct browser):
 ```
