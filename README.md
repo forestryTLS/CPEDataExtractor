@@ -83,4 +83,4 @@ To create a clickable desktop icon on Windows to run your Python script, you can
 3. Adding optional arguments
    - Right click the shortcut created and select "Properties"
    - In the target field, append the arguments you want then hit Apply and OK
-   - example: <path>\rundataextractor.bat --mfe --courses CACE CNR CVA
+   - example: PATH\rundataextractor.bat --mfe --courses CACE CNR CVA
