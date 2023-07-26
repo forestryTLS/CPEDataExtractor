@@ -8,14 +8,8 @@ These instructions below are using Unix commands.
 6. Run the program with ```python get_data.py```
 
 # Notes
-- I use Edge as my default browser, but if you use Chrome as your browser, you may run into issues. Try changing the selenium webdriver in get_data.py to the following:
-```
-from selenium import webdriver
-from selenium.webdriver.edge.service import Service as EdgeService
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
-
-driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()))
-```
+- Set the browser variable to a browser that you don't use as your default. Such as if you use Chromium as your default, set browser to Edge.
+- The program should open a new browser everytime forcing you to log in if everything is set up correctly.
 If that doesn't work, try adding the following:
 ```
 from selenium.webdriver.chrome.options import Options
