@@ -164,7 +164,11 @@ def distribute_enrollment_data(df_enrollment, path_to_user_data, path_to_grant_d
         user_grant_row = df_grant_data[df_grant_data['Email'].str.lower().str.strip() == user_email].tail(1)
         data = extract_user_data(row, user_data_row, user_grant_row)
         # 2: find the correct sheet to use
-        (sheet, excel_path, workbook) = find_sheet(row)
+        try:
+            (sheet, excel_path, workbook) = find_sheet(row)
+        except Exception as e:
+            print(f"COUlDN'T FIND SHEET FOR {user_email} SKIPPING. Error message {e}")
+            continue
 
         # 3: Check if email already in sheet
         existing_row = search_email_in_sheet(sheet, user_email)
@@ -173,6 +177,7 @@ def distribute_enrollment_data(df_enrollment, path_to_user_data, path_to_grant_d
         insert_or_append_row(sheet, data, existing_row)
         data["Excel Path"] = excel_path.split("/")[-1]
         all_rows.append(data)
+        print(f"APPENDED DATA TO {data['Excel Path']} FOR {user_email}")
         workbook.save(excel_path)
     
     df = pd.DataFrame(all_rows)
