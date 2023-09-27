@@ -57,6 +57,8 @@ FULL_OPTION_NAME = {
                     "ZCBS - ": "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions"
                     }
 
+ENROLLMENT_STATUSES = ['Active', 'Completed', 'Concluded', 'Dropped']
+
 def print_decorator(func):
     # This just prints the function name before and after, useful for debugging
     def wrapper(*args, **kwargs):
@@ -151,6 +153,34 @@ def filtering(courses):
             print("OPTION NOT FOUND IN TIME", option)
 
 @print_decorator
+def filter_enrollment_status(status_list):
+    """ Apply the specified status filters when the ```--status``` argument is used. """
+    wait = WebDriverWait(driver, 10)
+
+    # expand the "Enrollments" accordion
+    enrollments_accordion_button = driver.find_element(By.CSS_SELECTOR, 'button[data-automation="FilterPanel__Toggle__Details"]')
+    enrollments_accordion_button.click()
+
+    #wait until the "Status" dropdown is visible
+    status_dropdown = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Enrollment__Status"]')))
+    status_dropdown.click()
+
+    # iterate over status list and select each status for filtering
+    for status in status_list:
+        status_dropdown = driver.find_element(By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Enrollment__Status"]')
+        status_dropdown.clear()
+        status_dropdown.send_keys(status)
+
+        # check if selected status exists in page and select if so
+        try:
+            wait.until(lambda driver: check_page_source(driver, status))
+            status_filter = driver.find_element(By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Enrollment__Status"]')
+            status_filter.send_keys(Keys.ARROW_DOWN)
+            status_filter.send_keys(Keys.ENTER)
+        except (TimeoutException, KeyboardInterrupt):
+            print("COULDN'T FIND STATUS:", status)
+
+@print_decorator
 def filter_enrollment_date(manually_filter):
     """ If manually_filter, this clicks the date filter button and waits for user input before continuing """
     if not manually_filter:
@@ -204,7 +234,12 @@ def convert_numeric_columns(df):
 
 def extract_table_data(table_data):
     """ Extract aria-labels or text, assumes page has a table, uses the data-testid property as the column header """
-    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'table')))
+    try:
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'table')))
+    except TimeoutException:
+        print("NO DATA FOUND.")
+        exit()
+    
     soup = BeautifulSoup(driver.page_source.encode("utf-8"), 'html.parser')
 
     table = soup.find('table') 
@@ -281,12 +316,18 @@ if __name__ == "__main__":
     parser.add_argument('--mfe', action='store_true', help='Manually Filter Enrollments. Include this argument if you want the bot to pause when filtering enrollments')
     parser.add_argument('--mfu', action='store_true', help='Manually Filter Users. Include this argument if you want the bot to pause when filtering users')
     parser.add_argument('--courses', nargs='+', choices=VALID_COURSES, default=VALID_COURSES, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
-    
+    parser.add_argument('--status', nargs='+', choices=ENROLLMENT_STATUSES, default=ENROLLMENT_STATUSES, help='Indicate which enrollment statuses you wish to filter for. Example: --status Active Completed. Defaults to any status.')
+
     # Parse the command line arguments
     args = parser.parse_args()
     
     login()
     filtering(args.courses)
+
+    # skip enrollment status filtering if all statuses are selected (redundant)
+    if(set(args.status) != set(ENROLLMENT_STATUSES)):
+        filter_enrollment_status(args.status)
+    
     filter_enrollment_date(args.mfe)
     enrollment_df = extract_enrollment_table()
     extract_users(args.mfu)
