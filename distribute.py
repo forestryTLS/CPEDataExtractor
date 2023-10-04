@@ -59,7 +59,10 @@ Grant amount to give -> Received FSG?, Grant Amount
 
 def extract_user_data(row, user_data_row, user_grant_row):
     """ This puts combines the data from the various sheets into the format we want """
-    email = row['student_name_1'].split(' ')[2]
+    try:
+        email = row['student_name_1'].split(' ')[2]
+    except IndexError:
+        email = None
 
     data = {
         'Full Name': row['student_name_0'],
@@ -113,6 +116,24 @@ def search_email_in_sheet(sheet, email):
 
     return -1
 
+def search_name_in_sheet(sheet, name):
+    """ Return the row index where email is found, -1 if not found """
+    name_column = None
+
+    for cell in sheet[HEADER_ROW]:
+        if cell.value == 'Full Name':
+            name_column = cell.column_letter
+            break
+    
+    if name_column is None:
+        return -1
+    
+    for row_idx, cell  in enumerate(sheet[name_column], start=1):
+        if cell.value and cell.value.lower().strip() == name.lower().strip():
+            return row_idx
+        
+    return -1
+
 def find_empty_row(sheet):
     """ Starting from row 3 of the sheet, find a row where the first column is empty"""
     for row_index, row in enumerate(sheet.iter_rows(min_row=3), start=3):
@@ -160,7 +181,11 @@ def distribute_enrollment_data(df_enrollment, path_to_user_data, path_to_grant_d
     for _, row in df_enrollment.iterrows():
         # Search for the row in user_data based on student_name_1 and email inside student_name_1
         user_data_row = df_user_data[df_user_data['student_name_1'].str.lower().str.strip() == row['student_name_1'].lower().strip()].tail(1)
-        user_email = row['student_name_1'].split(' ')[2].lower().strip() 
+        try:
+            user_email = row['student_name_1'].split(' ')[2].lower().strip()
+        except IndexError:
+            user_email = None
+
         user_grant_row = df_grant_data[df_grant_data['Email'].str.lower().str.strip() == user_email].tail(1)
         data = extract_user_data(row, user_data_row, user_grant_row)
         # 2: find the correct sheet to use
@@ -170,14 +195,18 @@ def distribute_enrollment_data(df_enrollment, path_to_user_data, path_to_grant_d
             print(f"COUlDN'T FIND SHEET FOR {user_email} SKIPPING. Error message {e}")
             continue
 
-        # 3: Check if email already in sheet
-        existing_row = search_email_in_sheet(sheet, user_email)
+        # 3: Check if email already in sheet, if not, search by name
+        if user_email is not None:
+            existing_row = search_email_in_sheet(sheet, user_email)
+        else:
+            user_full_name = row['student_name_0']
+            existing_row = search_name_in_sheet(sheet, user_full_name)
 
         # 4: Insert data at the end or write to the existing row
         insert_or_append_row(sheet, data, existing_row)
         data["Excel Path"] = excel_path.split("/")[-1]
         all_rows.append(data)
-        print(f"APPENDED DATA TO {data['Excel Path']} FOR {user_email}")
+        print(f"APPENDED DATA TO {data['Excel Path']} FOR {user_email if user_email is not None else user_full_name}")
         workbook.save(excel_path)
     
     df = pd.DataFrame(all_rows)
