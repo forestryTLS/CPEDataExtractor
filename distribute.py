@@ -24,6 +24,7 @@ EXCELS = {
     "SMS": ("Strategic Management for Sustainability - Registrations.xlsx"),
     "TWS": ("Tall Wood Structures - Registrations.xlsx"),
     "ZCBS": ("Zero Carbon Building Solutions - Registrations.xlsx"),
+    "FMP": ("Forest Management Planning - Registrations.xlsx"),
 }
 
 # This is where to expect the header to be in the excel, necessary for finding the right column for data
