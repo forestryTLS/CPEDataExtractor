@@ -262,7 +262,7 @@ def extract_table_data(table_data):
 
                     search_string = td.text
                     email_regex = '([A-z0-9\.\#\-\_\|]+@[A-z0-9\.\-]{4,})'
-                    full_regex = f'(^[A-Za-zÀ-ÖØ-öø-ÿ\s\-]+)(#[0-9]+)(\s\|\s)?{email_regex}?'
+                    full_regex = f'(^[A-Za-zÀ-ÖØ-öø-ÿ\s\-\(\)\'\.]+)(#[0-9]+)(\s\|\s)?{email_regex}?'
 
                     full_match = re.search(full_regex, search_string)
 
@@ -297,9 +297,17 @@ def extract_table_data(table_data):
                     
                     # if no truncated text, get listing name and id from innerText
                     else:
-                        (listing_name, listing_id) = td.text.split('\n')
-                        row_data[f'{label}_0'] = listing_name
-                        row_data[f'{label}_1'] = listing_id
+                        id_pattern = re.compile('[0-9]{4,}$')
+
+                        match = id_pattern.search(td.text)
+
+                        if match:
+                            listing_id = match.group(0)
+                            listing_name = td.text.replace(listing_id, "")
+                            row_data[f'{label}_0'] = listing_name
+                            row_data[f'{label}_1'] = listing_id
+                        else:
+                            row_data[f'{label}_0'] = td.text
 
                 else:
                     row_data[label] = td.text
