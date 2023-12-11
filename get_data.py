@@ -40,7 +40,7 @@ else:
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
 
 # NOTE: KEEP THIS VALID_COURSES AND FULL_OPTION_NAME UP TO DATE
-VALID_COURSES = ["CBBD", "CACE", "CNR", "CSRP", "CVA", "EFO", "FCM", "HTC", "FHM", "FSTB", "SMS", "TWS", "ZCBS"] 
+VALID_COURSES = ["CBBD", "CACE", "CNR", "CSRP", "CVA", "EFO", "FCM", "HTC", "FHM", "FSTB", "SMS", "TWS", "ZCBS", "FMP"] 
 FULL_OPTION_NAME = {
                     "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
                     "CACE - ": "CACE - Online Micro-Certificate: Climate Action and Community Engagement",
@@ -54,7 +54,8 @@ FULL_OPTION_NAME = {
                     "FSTB - ": "FSTB - Online Micro-Certificate: Fire Safety for Timber Buildings",
                     "SMS - ": "SMS - Online Micro-Certificate: Strategic Management for Sustainability",
                     "TWS - ": "TWS - Online Micro-Certificate: Tall Wood Structures",
-                    "ZCBS - ": "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions"
+                    "ZCBS - ": "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions",
+                    "FMP - ": "FMP - Online Micro-Certificate: Forest Management Planning"
                     }
 
 ENROLLMENT_STATUSES = ['Active', 'Completed', 'Concluded', 'Dropped']
@@ -251,16 +252,79 @@ def extract_table_data(table_data):
         for td in row.find_all('td'):
             # getting the column's label from data-testid attribute
             if 'data-testid' in td.attrs:
+                
                 label = td['data-testid']
-                span_with_aria_labels = td.find_all('span', attrs={'aria-label': True})
-                # if there are multiple spans with aria-label
-                if len(span_with_aria_labels) > 1:
-                    for i, span in enumerate(span_with_aria_labels):
-                        value = span['aria-label']
-                        row_data[label + '_' + str(i)] = value  # unique column name with index
+
+                #spans_with_aria_labels = td.find_all('span', attrs={'aria-label': True})
+
+                if label == 'student_name':
+                    spans_with_aria_labels = td.find_all(lambda tag: tag.name == 'span' and tag.has_attr('aria-label'))
+
+                    search_string = td.text
+                    name_regex = '(^[A-Za-zÀ-ÖØ-öø-ÿ\s\-\(\)\'\.]+)'
+                    email_regex = '([A-z0-9\.\#\-\_\|]+@[A-z0-9\.\-]{4,})'
+                    full_regex = f'{name_regex}(#[0-9]+)(\s\|\s)?{email_regex}?'
+
+                    full_match = re.search(full_regex, search_string)
+
+                    if full_match:
+                        name_found = False
+                        email_found = False
+                        
+                        # if <span> with aria-label exists, get email from that (email in td innerText is truncated)
+                        if len(spans_with_aria_labels) > 0:
+                            for span in spans_with_aria_labels:
+                                name_match = re.search(name_regex, span['aria-label'], re.I)
+                                email_match = re.search(email_regex, span['aria-label'], re.I)
+                                if name_match:
+                                    row_data[f'{label}_0'] = name_match.group(1)
+                                    name_found = True
+                                if email_match:
+                                    row_data[f'{label}_1'] = email_match.string
+                                    email_found = True 
+                        
+                        # check if the full name and/or email were found in a span's aria-label property
+                        if name_found is False:
+                            row_data[f'{label}_0'] = full_match.group(1)
+                        if email_found is False:
+                            row_data[f'{label}_1'] = ''.join(full_match.groups()[1:])
+
+                        # otherwise, try to get email from td contents
+                        else:
+                            if len(full_match.groups()) > 1:
+                                row_data[f'{label}_1'] = ''.join(full_match.groups()[1:])
+                            else:
+                                row_data[f'{label}_1'] = '—'
+                    # if no regex match for td innerText, insert full innerText into first column
+                    else:
+                        row_data[f'{label}_0'] = search_string
+                elif label == 'product_name':
+                    span_with_aria_label = td.find(lambda tag: tag.name == 'span' and tag.has_attr('aria-label'))
+
+                    # if truncated text, get full listing name from aria-label and id from innerText
+                    if span_with_aria_label:
+                        row_data[f'{label}_0'] = span_with_aria_label['aria-label']
+
+                        id_pattern = re.compile('[0-9]{4,}$')
+
+                        row_data[f'{label}_1'] = id_pattern.search(td.text).group(0)
+                    
+                    # if no truncated text, get listing name and id from innerText
+                    else:
+                        id_pattern = re.compile('[0-9]{4,}$')
+
+                        match = id_pattern.search(td.text)
+
+                        if match:
+                            listing_id = match.group(0)
+                            listing_name = td.text.replace(listing_id, "")
+                            row_data[f'{label}_0'] = listing_name
+                            row_data[f'{label}_1'] = listing_id
+                        else:
+                            row_data[f'{label}_0'] = td.text
+
                 else:
-                    value = td.text
-                    row_data[label] = value
+                    row_data[label] = td.text
 
         table_data.append(row_data)
     return table_data
