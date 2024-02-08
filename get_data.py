@@ -261,7 +261,7 @@ def extract_table_data(table_data):
                     spans_with_aria_labels = td.find_all(lambda tag: tag.name == 'span' and tag.has_attr('aria-label'))
 
                     search_string = td.text
-                    name_regex = '(^[A-Za-zÀ-ÖØ-öø-ÿ\s\-\(\)\'\.]+)'
+                    name_regex = '(^[0-9A-Za-zÀ-ÖØ-öø-ÿ\s\-\(\)\'\.]+)'
                     email_regex = '([A-z0-9\.\#\-\_\|]+@[A-z0-9\.\-]{4,})'
                     full_regex = f'{name_regex}(#[0-9]+)(\s\|\s)?{email_regex}?'
 
@@ -271,7 +271,7 @@ def extract_table_data(table_data):
                         name_found = False
                         email_found = False
                         
-                        # if <span> with aria-label exists, get email from that (email in td innerText is truncated)
+                        # if <span> with aria-label exists, get name and/or email from that
                         if len(spans_with_aria_labels) > 0:
                             for span in spans_with_aria_labels:
                                 name_match = re.search(name_regex, span['aria-label'], re.I)
@@ -284,17 +284,21 @@ def extract_table_data(table_data):
                                     email_found = True 
                         
                         # check if the full name and/or email were found in a span's aria-label property
+                        # if not, get from innerText match
                         if name_found is False:
                             row_data[f'{label}_0'] = full_match.group(1)
                         if email_found is False:
-                            row_data[f'{label}_1'] = ''.join(full_match.groups()[1:])
-
-                        # otherwise, try to get email from td contents
-                        else:
-                            if len(full_match.groups()) > 1:
-                                row_data[f'{label}_1'] = ''.join(full_match.groups()[1:])
+                            if(len(full_match.groups()) > 1):
+                                row_data[f'{label}_1'] = ''.join(map(str, full_match.groups()[1:]))
                             else:
                                 row_data[f'{label}_1'] = '—'
+                        # otherwise, try to get name and/or email from td contents
+                        # else:
+                        #     if len(full_match.groups()) > 1:
+                        #         row_data[f'{label}_0'] = full_match.group(1)
+                        #         row_data[f'{label}_1'] = ''.join(map(str,full_match.groups())[1:])
+                        #     else:
+                        #         row_data[f'{label}_1'] = '—'
                     # if no regex match for td innerText, insert full innerText into first column
                     else:
                         row_data[f'{label}_0'] = search_string
