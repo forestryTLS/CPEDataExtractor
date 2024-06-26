@@ -25,6 +25,9 @@ EXCELS = {
     "TWS": ("Tall Wood Structures - Registrations.xlsx"),
     "ZCBS": ("Zero Carbon Building Solutions - Registrations.xlsx"),
     "FMP": ("Forest Management Planning - Registrations.xlsx"),
+    "EBSC": ("Engineered Bamboo for Sustainable Construction - Registrations.xlsx"),
+    "LCACF": ("Life Cycle Assessment of Clean Fuels - Registrations.xlsx"),
+    "LLFM": ("Landscape Level Forest Modelling - Registrations.xlsx")
 }
 
 # This is where to expect the header to be in the excel, necessary for finding the right column for data
@@ -40,7 +43,7 @@ def add_date_to_filename(filename):
 
 """
 Steps to distribute data for each enrollment entry
-1. Iterate through new enrollment data (must be a pandas dataframe)
+1. Iterate  through new enrollment data (must be a pandas dataframe)
 Enrollment data must contain the following columns:
 student_name_0 -> Full name, student_name_1 -> Email address, product_name_0 (contains program code and session)
 Then using their email address retrieve the following data from user_data (take the last match, potentially duplicate emails if data changed):

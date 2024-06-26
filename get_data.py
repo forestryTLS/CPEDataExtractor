@@ -40,23 +40,44 @@ else:
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
 
 # NOTE: KEEP THIS VALID_COURSES AND FULL_OPTION_NAME UP TO DATE
-VALID_COURSES = ["CBBD", "CACE", "CNR", "CSRP", "CVA", "EFO", "FCM", "HTC", "FHM", "FSTB", "SMS", "TWS", "ZCBS", "FMP"] 
+VALID_COURSES = [
+    "CBBD", 
+    "CACE", 
+    "CNR", 
+    "CSRP", 
+    "CVA", 
+    "EFO", 
+    "FCM", 
+    "HTC", 
+    "FHM", 
+    "FSTB", 
+    "SMS", 
+    "TWS", 
+    "ZCBS", 
+    "FMP", 
+    "EBSC", 
+    "LCACF",
+    "LLFM"
+] 
 FULL_OPTION_NAME = {
-                    "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
-                    "CACE - ": "CACE - Online Micro-Certificate: Climate Action and Community Engagement",
-                    "CNR - ": 'CNR - Online Micro-Certificate: Co-Management of Natural Resources',
-                    "CSRP - ": "CSRP - Online Micro-Certificate: Communication Strategies for Resource Practitioners",
-                    "CVA - ": "CVA - Online Micro-Certificate: Climate Vulnerability & Adaptation",
-                    "EFO - ": "EFO - Online Micro-Certificate: Environmental Footprints of Organizations",
-                    "FCM - ": "FCM - Online Micro-Certificate: Forest Carbon Management",
-                    "HTC - ": "HTC - Online Micro-Certificate: Hybrid Timber Construction",
-                    "FHM - ": "FHM - Online Micro-Certificate: Forest Health Management",
-                    "FSTB - ": "FSTB - Online Micro-Certificate: Fire Safety for Timber Buildings",
-                    "SMS - ": "SMS - Online Micro-Certificate: Strategic Management for Sustainability",
-                    "TWS - ": "TWS - Online Micro-Certificate: Tall Wood Structures",
-                    "ZCBS - ": "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions",
-                    "FMP - ": "FMP - Online Micro-Certificate: Forest Management Planning"
-                    }
+    "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
+    "CACE - ": "CACE - Online Micro-Certificate: Climate Action and Community Engagement",
+    "CNR - ": 'CNR - Online Micro-Certificate: Co-Management of Natural Resources',
+    "CSRP - ": "CSRP - Online Micro-Certificate: Communication Strategies for Resource Practitioners",
+    "CVA - ": "CVA - Online Micro-Certificate: Climate Vulnerability & Adaptation",
+    "EFO - ": "EFO - Online Micro-Certificate: Environmental Footprints of Organizations",
+    "FCM - ": "FCM - Online Micro-Certificate: Forest Carbon Management",
+    "HTC - ": "HTC - Online Micro-Certificate: Hybrid Timber Construction",
+    "FHM - ": "FHM - Online Micro-Certificate: Forest Health Management",
+    "FSTB - ": "FSTB - Online Micro-Certificate: Fire Safety for Timber Buildings",
+    "SMS - ": "SMS - Online Micro-Certificate: Strategic Management for Sustainability",
+    "TWS - ": "TWS - Online Micro-Certificate: Tall Wood Structures",
+    "ZCBS - ": "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions",
+    "FMP - ": "FMP - Online Micro-Certificate: Forest Management Planning",
+    "EBSC - ": "EBSC - Online Micro-Certificate: Engineered Bamboo for Sustainable Construction",
+    "LCACF - ": "LCACF - Online Micro-Certificate: Life Cycle Assessment in Clean Fuels",
+    "LLFM - ": "LLFM - Online Micro-Certificate: Landscape Level Forest Modelling"
+}
 
 ENROLLMENT_STATUSES = ['Active', 'Completed', 'Concluded', 'Dropped']
 
