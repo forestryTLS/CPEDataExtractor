@@ -27,7 +27,7 @@ EXCELS = {
     "FMP": ("Forest Management Planning - Registrations.xlsx"),
     "EBSC": ("Engineered Bamboo for Sustainable Construction - Registrations.xlsx"),
     "LCACF": ("Life Cycle Assessment of Clean Fuels - Registrations.xlsx"),
-    "LLFM": ("Landscape Level Forest Modelling - Registrations.xlsx")
+    "LLFM": ("Landscape Level Forest Modeling - Registrations.xlsx")
 }
 
 # This is where to expect the header to be in the excel, necessary for finding the right column for data
@@ -79,7 +79,7 @@ def extract_user_data(row, user_data_row, user_grant_row):
             'Title': user_data_row['custom_fields_title'].values[0],
             'Phone Number': user_data_row['custom_fields_phone-number'].values[0],
             'Mailing Address': user_data_row['custom_fields_mailing-address'].values[0],
-            'Self-Identify as Indigenous?': 'Yes' if user_data_row['custom_fields_indigenous-self-declaration'].values[0].lower().strip() == '1' else 'No',
+            'Self-Identify as Indigenous?': 'Yes' if user_data_row['custom_fields_indigenous-self-declaration'].astype(str).values[0].lower().strip() == '1' else 'No',
         }
         data.update(extra)
 

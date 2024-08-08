@@ -6,6 +6,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import re
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 import pandas as pd
 import argparse
 import os
@@ -76,7 +77,7 @@ FULL_OPTION_NAME = {
     "FMP - ": "FMP - Online Micro-Certificate: Forest Management Planning",
     "EBSC - ": "EBSC - Online Micro-Certificate: Engineered Bamboo for Sustainable Construction",
     "LCACF - ": "LCACF - Online Micro-Certificate: Life Cycle Assessment in Clean Fuels",
-    "LLFM - ": "LLFM - Online Micro-Certificate: Landscape Level Forest Modelling"
+    "LLFM - ": "LLFM - Online Micro-Certificate: Landscape Level Forest Modeling"
 }
 
 ENROLLMENT_STATUSES = ['Active', 'Completed', 'Concluded', 'Dropped']
@@ -269,7 +270,9 @@ def extract_table_data(table_data):
     for row in tbody.find_all('tr'):
 
         row_data = {}
+        
         # iterate over each column in the row
+        td: Tag
         for td in row.find_all('td'):
             # getting the column's label from data-testid attribute
             if 'data-testid' in td.attrs:
@@ -342,7 +345,15 @@ def extract_table_data(table_data):
 
                         if match:
                             listing_id = match.group(0)
-                            listing_name = td.text.replace(listing_id, "")
+
+                            screen_reader_span = td.find_all("span", class_=re.compile("screenReaderContent", re.IGNORECASE), limit=1)
+
+                            # only listing names that overflow the cell contain a <span> element with the ...-screenReaderContent class
+                            if len(screen_reader_span) > 0:
+                                listing_name = screen_reader_span[0].text
+                            else:
+                                listing_name = td.text.replace(listing_id, "")
+                            
                             row_data[f'{label}_0'] = listing_name
                             row_data[f'{label}_1'] = listing_id
                         else:
