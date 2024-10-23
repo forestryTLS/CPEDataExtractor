@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime
 import re
+import traceback
 
 load_dotenv()
 
@@ -184,7 +185,14 @@ def distribute_enrollment_data(df_enrollment, path_to_user_data, path_to_grant_d
 
     for _, row in df_enrollment.iterrows():
         # Search for the row in user_data based on student_name_1 and email inside student_name_1
-        user_data_row = df_user_data[df_user_data['student_name_1'].str.lower().str.strip() == row['student_name_1'].lower().strip()].tail(1)
+        try:
+            user_data_row = df_user_data[df_user_data['student_name_1'].str.lower().str.strip() == row['student_name_1'].lower().strip()].tail(1)
+        except:
+            print("ERROR: Couldn't process row:")
+            print(row)
+            print(traceback.format_exc())
+            print("SKIPPING...")
+            continue
         try:
             user_email = row['student_name_1'].split(' ')[2].lower().strip()
         except IndexError:
