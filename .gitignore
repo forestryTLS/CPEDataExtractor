@@ -1,4 +1,5 @@
 env/
+venv/
 Registrations/
 .env
 Raw_data/

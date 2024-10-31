@@ -285,9 +285,9 @@ def extract_table_data(table_data):
                     spans_with_aria_labels = td.find_all(lambda tag: tag.name == 'span' and tag.has_attr('aria-label'))
 
                     search_string = td.text
-                    name_regex = '(^[0-9A-Za-z\u0100-\u017FÀ-ÖØ-öø-ÿ\s\-\(\)\'\.]+)'
-                    email_regex = '([A-z0-9\.\#\-\_\|]+@[A-z0-9\.\-]{4,})'
-                    full_regex = f'{name_regex}(#[0-9]+)(\s\|\s)?{email_regex}?'
+                    name_regex = '(^[0-9A-Za-z\\u0100-\\u017FÀ-ÖØ-öø-ÿ\\s\\-\\(\\)\'\\.]+)'
+                    email_regex = '([A-z0-9\\.\\#\\-\\_\\|]+@[A-z0-9\\.\\-]{4,})'
+                    full_regex = f'{name_regex}(#[0-9]+)(\\s\\|\\s)?{email_regex}?'
 
                     full_match = re.search(full_regex, search_string)
 
