@@ -241,6 +241,25 @@ def check_and_click_next_button():
 
     except NoSuchElementException:
         return False
+    
+def find_and_click_next_page():
+    """If there is more than one page of results, find the next page <button> and click it."""
+
+    try:
+        wait = WebDriverWait(driver, 10)
+        div_pagination = driver.find_element(By.CSS_SELECTOR, "[data-automation='Pagination']")
+
+        button_next_page = div_pagination.find_element(By.CSS_SELECTOR, "button[aria-current='page'] + button")
+
+        if button_next_page:
+            print(f"Navigating to page {button_next_page.text}...")
+            driver.execute_script("arguments[0].click();", button_next_page)
+            return True
+        
+        return False
+    except NoSuchElementException:
+        print("No additional pages found. Proceeding...")
+        return False
         
 def convert_numeric_columns(df):
     """
@@ -372,7 +391,7 @@ def extract_enrollment_table():
     
     while True:
         table_data = extract_table_data(table_data)
-        if check_and_click_next_button() == False:
+        if find_and_click_next_page() == False:
             break
 
     # Create a DataFrame from your data
@@ -399,7 +418,7 @@ def extract_users(manually_filter_users):
     
     while True:
         table_data = extract_table_data(table_data)
-        if check_and_click_next_button() == False:
+        if find_and_click_next_page() == False:
             break
 
     # Create a DataFrame from your data
