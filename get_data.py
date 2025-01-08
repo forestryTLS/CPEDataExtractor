@@ -249,8 +249,8 @@ def find_and_click_next_page():
         wait = WebDriverWait(driver, 10)
         div_pagination = driver.find_element(By.CSS_SELECTOR, "[data-automation='Pagination']")
 
-        button_next_page = div_pagination.find_element(By.CSS_SELECTOR, "button[aria-current='page'] + button")
-
+        button_next_page = div_pagination.find_element(By.CSS_SELECTOR, "li:has(button[aria-current='page']) + li > button") 
+            
         if button_next_page:
             print(f"Navigating to page {button_next_page.text}...")
             driver.execute_script("arguments[0].click();", button_next_page)
