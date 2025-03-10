@@ -292,7 +292,7 @@ def extract_table_data(table_data):
         
         # iterate over each column in the row
         td: Tag
-        for td in row.find_all('td'):
+        for td in row.find_all(['td', 'th']):
             # getting the column's label from data-testid attribute
             if 'data-testid' in td.attrs:
                 
