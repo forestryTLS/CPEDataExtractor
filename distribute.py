@@ -28,7 +28,9 @@ EXCELS = {
     "FMP": ("Forest Management Planning - Registrations.xlsx"),
     "EBSC": ("Engineered Bamboo for Sustainable Construction - Registrations.xlsx"),
     "LCACF": ("Life Cycle Assessment of Clean Fuels - Registrations.xlsx"),
-    "LLFM": ("Landscape Level Forest Modeling - Registrations.xlsx")
+    "LLFM": ("Landscape Level Forest Modeling - Registrations.xlsx"),
+    "FAS": ("Foundations of Advanced Silviculture - Registration.xlsx"),
+    "CLF": ("Advanced Life Cycle Assessment of Clean Liquid Fuels - Registration.xlsx"),
 }
 
 # This is where to expect the header to be in the excel, necessary for finding the right column for data

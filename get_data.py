@@ -58,7 +58,9 @@ VALID_COURSES = [
     "FMP", 
     "EBSC", 
     "LCACF",
-    "LLFM"
+    "LLFM",
+    "FAS",
+    "CLF"
 ] 
 FULL_OPTION_NAME = {
     "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
@@ -77,7 +79,9 @@ FULL_OPTION_NAME = {
     "FMP - ": "FMP - Online Micro-Certificate: Forest Management Planning",
     "EBSC - ": "EBSC - Online Micro-Certificate: Engineered Bamboo for Sustainable Construction",
     "LCACF - ": "LCACF - Online Micro-Certificate: Life Cycle Assessment in Clean Fuels",
-    "LLFM - ": "LLFM - Online Micro-Certificate: Landscape Level Forest Modeling"
+    "LLFM - ": "LLFM - Online Micro-Certificate: Landscape Level Forest Modeling",
+    "FAS - ": "FAS - Online Micro-Certificate: Foundations of Advanced Silviculture",
+    "CLF - ": "CLF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Gaseous Fuels"
 }
 
 ENROLLMENT_STATUSES = ['Active', 'Completed', 'Concluded', 'Dropped']
