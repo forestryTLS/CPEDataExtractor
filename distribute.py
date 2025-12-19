@@ -1,10 +1,17 @@
 from openpyxl import load_workbook
+from openpyxl.worksheet.worksheet import Worksheet
+from openpyxl.worksheet._read_only import ReadOnlyWorksheet
+from openpyxl.worksheet._write_only import WriteOnlyWorksheet
+from openpyxl.chartsheet import Chartsheet
 import pandas as pd
 from dotenv import load_dotenv
 import os
 from datetime import datetime
 import re
 import traceback
+from pathlib import Path
+
+from utils.logging import bcolors
 
 load_dotenv()
 
@@ -31,6 +38,7 @@ EXCELS = {
     "LLFM": ("Landscape Level Forest Modeling - Registrations.xlsx"),
     "FAS": ("Foundations of Advanced Silviculture - Registration.xlsx"),
     "CLF": ("Advanced Life Cycle Assessment of Clean Liquid Fuels - Registration.xlsx"),
+    "CGF": ("Advanced Life Cycle Assessment of Clean Gaseous Fuels - Registration.xlsx"),
 }
 
 # This is where to expect the header to be in the excel, necessary for finding the right column for data
@@ -65,11 +73,14 @@ Grant amount to give -> Received FSG?, Grant Amount
 """
 
 def extract_user_data(row, user_data_row, user_grant_row):
-    """ This puts combines the data from the various sheets into the format we want """
+    """ This combines the data from the various sheets into the format we want """
     try:
-        email = row['student_name_1'].split(' ')[2]
+        email = str(row['student_name_1']).split("|")[-1]
     except IndexError:
         email = None
+
+    if email is None:
+        print(bcolors.WARNING + f"WARNING: No email address found for {row['student_name_0']}" + bcolors.ENDC)
 
     data = {
         'Full Name': row['student_name_0'],
@@ -101,11 +112,23 @@ def find_sheet(row):
     course_info = row['product_name_0'].split(" ")
     course_session = " ".join(course_info[-2:])
 
-    excel_path = REGISTRATIONS_FOLDER_PATH + EXCELS[course_code]
+    excel_path = Path(REGISTRATIONS_FOLDER_PATH) / EXCELS[course_code]
+
+    if not excel_path.is_file():
+        raise Exception(f"The file {excel_path} does not exist.")
+    
+    if excel_path.suffix.lower() not in [".xlsx", ".xlsm"]:
+        raise Exception(f"The file {excel_path} is not a valid Excel file.")
+
     workbook = load_workbook(filename=excel_path)
+    workbook.worksheets
     return (workbook[course_session], excel_path, workbook)
 
-def search_email_in_sheet(sheet, email):
+def search_email_in_sheet(
+    product_name: str, 
+    sheet: Worksheet | ReadOnlyWorksheet | WriteOnlyWorksheet | Chartsheet, 
+    email: str
+):
     """ Return the row index where email is found, -1 if not found """
     email_column = None
 
@@ -115,15 +138,21 @@ def search_email_in_sheet(sheet, email):
             break
 
     if email_column is None:
+        print(bcolors.FAIL + f'ERROR: Could not find "Email Address" column in sheet "{sheet.title}" ({product_name}).' + bcolors.ENDC)
         return -1
 
     for row_idx, cell in enumerate(sheet[email_column], start=1):
-        if cell.value and cell.value.lower().strip() == email:
+        if cell.value and cell.value.lower().strip() == str(email).lower().strip():
             return row_idx
 
+    print(bcolors.WARNING + f'Could not find row that matches the email {email}.' + bcolors.ENDC)
     return -1
 
-def search_name_in_sheet(sheet, name):
+def search_name_in_sheet(
+    product_name: str, 
+    sheet: Worksheet | ReadOnlyWorksheet | WriteOnlyWorksheet | Chartsheet, 
+    name: str
+):
     """ Return the row index where email is found, -1 if not found """
     name_column = None
 
@@ -133,12 +162,14 @@ def search_name_in_sheet(sheet, name):
             break
     
     if name_column is None:
+        print(bcolors.FAIL + f'ERROR: Could not find "Full Name" column in sheet "{sheet.title}" ({product_name}).' + bcolors.ENDC)
         return -1
     
     for row_idx, cell  in enumerate(sheet[name_column], start=1):
-        if cell.value and cell.value.lower().strip() == name.lower().strip():
+        if cell.value and cell.value.lower().strip() == str(name).lower().strip():
             return row_idx
-        
+    
+    print(bcolors.WARNING + f'Could not find row that matches the name {name}.' + bcolors.ENDC)
     return -1
 
 def find_empty_row(sheet):
@@ -148,7 +179,7 @@ def find_empty_row(sheet):
             return row_index
     return sheet.max_row + 1
 
-def insert_or_append_row(sheet, data, existing_row):
+def insert_or_append_row(sheet, data: dict, existing_row):
 
     # check if a table exists in the sheet (will use the first table listed if more than one)
     table = sheet.tables[list(sheet.tables.keys())[0]] if len(sheet.tables) > 0 else None
@@ -156,7 +187,10 @@ def insert_or_append_row(sheet, data, existing_row):
     """ If the row exists (not -1) then add data to columns that are empty, else append to end of sheet """
     row = existing_row if existing_row != -1 else None
     if row is None:
+        print(bcolors.WARNING + f'No row found for {data["Full Name"]} ({data["Email Address"]}). Inserting at empty row...' + bcolors.ENDC)
         row = find_empty_row(sheet)
+    else:
+        print(bcolors.OKCYAN + f'Appending data to row {row} for student {data["Full Name"]} ({data["Email Address"]})...' + bcolors.ENDC)
         
     for col_header, value in data.items():
         col_index = None
@@ -195,30 +229,42 @@ def distribute_enrollment_data(df_enrollment, path_to_user_data, path_to_grant_d
             print(traceback.format_exc())
             print("SKIPPING...")
             continue
-        try:
-            user_email = row['student_name_1'].split(' ')[2].lower().strip()
-        except IndexError:
-            user_email = None
 
-        user_grant_row = df_grant_data[df_grant_data['Email'].str.lower().str.strip() == user_email].tail(1)
+        # try:
+        #     user_email = row['student_name_1'].split(' ')[2].lower().strip()
+        # except IndexError:
+        #     print("ERROR: Failed to find valid email address in student_name_1:", row['student_name_1'])
+        #     user_email = None
+        
+        user_email = str(row['student_name_1']).split("|")[-1].strip()
+
+        user_grant_row = df_grant_data[
+            df_grant_data['Email'].str.lower().str.strip() == user_email
+        ].tail(1)
+
         data = extract_user_data(row, user_data_row, user_grant_row)
+
         # 2: find the correct sheet to use
         try:
             (sheet, excel_path, workbook) = find_sheet(row)
         except Exception as e:
-            print(f"COUlDN'T FIND SHEET FOR {user_email} SKIPPING. Error message {e}")
+            print(f"COULDN'T FIND SHEET CORRECT SHEET FOR USER WITH EMAIL {user_email}. ERROR: {e}")
             continue
 
-        # 3: Check if email already in sheet, if not, search by name
+        existing_row = None
+
+        # 3: Check if email already in sheet
         if user_email is not None:
-            existing_row = search_email_in_sheet(sheet, user_email)
-        else:
+            existing_row = search_email_in_sheet(row.get('product_name_0', ''), sheet, user_email)
+        
+        # 3b: If no email address provided or no row matches email, search by name
+        if existing_row is None or existing_row == -1:
             user_full_name = row['student_name_0']
-            existing_row = search_name_in_sheet(sheet, user_full_name)
+            existing_row = search_name_in_sheet(row.get('product_name_0', ''), sheet, user_full_name)
 
         # 4: Insert data at the end or write to the existing row
         insert_or_append_row(sheet, data, existing_row)
-        data["Excel Path"] = excel_path.split("/")[-1]
+        data["Excel Path"] = excel_path.name
         all_rows.append(data)
         print(f"APPENDED DATA TO {data['Excel Path']} FOR {user_email if user_email is not None else user_full_name}")
         workbook.save(excel_path)

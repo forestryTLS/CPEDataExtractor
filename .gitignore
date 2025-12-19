@@ -4,3 +4,4 @@ Registrations/
 .env
 Raw_data/
 __pycache__/
+*.log

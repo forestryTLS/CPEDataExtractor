@@ -11,8 +11,12 @@ import pandas as pd
 import argparse
 import os
 from dotenv import load_dotenv
-
+from datetime import date, timedelta
+from utils.logging import bcolors
 import distribute
+import json
+
+from typing import TypedDict
 
 load_dotenv()
 
@@ -60,8 +64,9 @@ VALID_COURSES = [
     "LCACF",
     "LLFM",
     "FAS",
-    "CLF"
-] 
+    "CLF",
+    "CGF",
+]
 FULL_OPTION_NAME = {
     "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
     "CACE - ": "CACE - Online Micro-Certificate: Climate Action and Community Engagement",
@@ -81,10 +86,95 @@ FULL_OPTION_NAME = {
     "LCACF - ": "LCACF - Online Micro-Certificate: Life Cycle Assessment in Clean Fuels",
     "LLFM - ": "LLFM - Online Micro-Certificate: Landscape Level Forest Modeling",
     "FAS - ": "FAS - Online Micro-Certificate: Foundations of Advanced Silviculture",
-    "CLF - ": "CLF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Gaseous Fuels"
+    "CLF - ": "CLF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Liquid Fuels",
+    "CGF - ": "CGF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Gaseous Fuels",
 }
 
 ENROLLMENT_STATUSES = ['Active', 'Completed', 'Concluded', 'Dropped']
+
+# Configuration to quickly set filters for analytics search
+SESSION_STORAGE_ENROLMENTS_SETTINGS_KEY = "analytics-settings-enrollments"
+SESSION_STORAGE_USERS_SETTINGS_KEY = "analytics-settings-users"
+
+DEFAULT_CREATION_DATE_FROM = (date.today() - timedelta(days=7)).strftime("%Y-%m-%d")
+DEFAULT_CREATION_DATE_TO = date.today().strftime("%Y-%m-%d")
+
+class AccountFilter(TypedDict):
+    id: int
+    name: str
+
+DEFAULT_ENROLMENTS_SETTINGS_OBJECT = {
+    "filter": {
+        "account_ids": [],
+        "product_ids": [],
+        "product_statuses": [],
+        "student_ids": [],
+        "enrollment_date_preset": "past_week",
+        "enrollment_date_from": DEFAULT_CREATION_DATE_FROM,
+        "enrollment_date_to": DEFAULT_CREATION_DATE_TO,
+        "enrollment_statuses": [],
+        "completion_date_preset": "all_time",
+        "completion_date_from": "",
+        "completion_date_to": "",
+        "enrollment_completion_percentage_min": "",
+        "enrollment_completion_percentage_max": ""
+    },
+    "page": 0,
+    "pageSize": 10,
+    "search": "",
+    "sortBy": "enrollment_date",
+    "sortDirection": "desc",
+    "wideContent": True,
+    "showChart": False,
+    "baseAccountId": 512
+}
+
+DEFAULT_USERS_SETTINGS_OBJECT = {
+    "filter": {
+        "account_ids": [],
+        "student_ids": [],
+        "enrollment_count_min": "",
+        "enrollment_count_max": "",
+        "last_enrollment_date_preset": "all_time",
+        "last_enrollment_date_from": "",
+        "last_enrollment_date_to": "",
+        "registration_date_preset": "past_week",
+        "registration_date_from": DEFAULT_CREATION_DATE_FROM,
+        "registration_date_to": DEFAULT_CREATION_DATE_TO
+    },
+    "page": 0,
+    "pageSize": 10,
+    "search": "",
+    "sortBy": "registration_date",
+    "sortDirection": "desc",
+    "wideContent": False,
+    "showChart": True,
+    "baseAccountId": 512
+}
+
+CATALOG_PROGRAM_IDS = {
+    "CACE - Online Micro-Certificate: Climate Action and Community Engagement": 526,
+    "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development": 1581,
+    "CGF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Gaseous Fuels": 2693,
+    "CLF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Liquid Fuels": 2569,
+    "CNR - Online Micro-Certificate: Co-Management of Natural Resources": 521,
+    "CSRP - Online Micro-Certificate: Communication Strategies for Resource Practitioners": 785,
+    "CVA - Online Micro-Certificate: Climate Vulnerability & Adaptation": 515,
+    "EBSC - Online Micro-Certificate: Engineered Bamboo for Sustainable Construction": 1958,
+    "EFO - Online Micro-Certificate: Environmental Footprints of Organizations": 1112,
+    "FAS - Online Micro-Certificate: Foundations of Advanced Silviculture": 2654,
+    "FCM - Online Micro-Certificate: Forest Carbon Management": 520,
+    "FHM - Online Micro-Certificate: Forest Health Management": 946,
+    "FMP - Online Micro-Certificate: Forest Management Planning": 1723,
+    "FSTB - Online Micro-Certificate: Fire Safety for Timber Buildings": 951,
+    "HTC - Online Micro-Certificate: Hybrid Timber Construction": 956,
+    "LCACF - Online Micro-Certificate: Life Cycle Assessment in Clean Fuels": 1944,
+    "LLFM - Online Micro-Certificate: Landscape Level Forest Modeling": 1953,
+    "SMS - Online Micro-Certificate: Strategic Management for Sustainability": 780,
+    "TWS - Online Micro-Certificate: Tall Wood Structures": 941,
+    "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions": 1116
+}
+
 
 def print_decorator(func):
     # This just prints the function name before and after, useful for debugging
@@ -117,7 +207,7 @@ def append_data_to_excel(filename, df_new_data):
 @print_decorator
 def login():
     """ Open the url which will prompt a login """
-    driver.get("https://courses.cpe.ubc.ca/new_analytics/enrollments")
+    driver.get("https://courses.cpe.ubc.ca/analytics/enrollments")
     # Click the login button
     link = driver.find_element(By.XPATH, '//a[@href="http://ubccpe.instructure.com/login/saml"]')
     link.click()
@@ -146,6 +236,57 @@ def check_page_source(driver, option):
             return True
     
     return False
+
+@print_decorator
+def filter_records_through_session_storage(courses: list[str], statuses: list[str]):
+    """ Adds the selected program filters to the session storage and navigates to enrolments page. """
+
+    if not courses or len(courses) == 0:
+        courses = VALID_COURSES
+
+    if not statuses or len(statuses) == 0:
+        statuses = ENROLLMENT_STATUSES
+
+    enrolments_settings_dict = dict(DEFAULT_ENROLMENTS_SETTINGS_OBJECT)
+
+    selected_course_abbreviations = [course + " - " for course in courses]
+
+    # add the course catalog filters
+    for course_abbrev in selected_course_abbreviations:
+        full_course_catalog_name = FULL_OPTION_NAME[course_abbrev]
+        course_catalog_id = CATALOG_PROGRAM_IDS[full_course_catalog_name]
+
+        # add the course to the account filters
+        enrolments_settings_dict["filter"]["account_ids"].append(
+            AccountFilter(
+                id=course_catalog_id,
+                name=full_course_catalog_name
+            )
+        )
+    
+    # add the status filters
+    for status in statuses:
+        enrolments_settings_dict["filter"]["enrollment_statuses"].append(
+            {
+                "id": status.upper(),
+                "label": status
+            }
+        )
+    
+    # update the corresponding session storage key
+    driver.execute_script(f'sessionStorage.setItem("{SESSION_STORAGE_ENROLMENTS_SETTINGS_KEY}", JSON.stringify({json.dumps(enrolments_settings_dict)}))')
+
+    # TODO: Add support for modifying "Users" filters
+    driver.execute_script(f'sessionStorage.setItem("{SESSION_STORAGE_USERS_SETTINGS_KEY}", JSON.stringify({json.dumps(DEFAULT_USERS_SETTINGS_OBJECT)}))')
+
+    # navigate to the enrolments page and wait for table navigation element to load
+    driver.get("https://courses.cpe.ubc.ca/analytics/enrollments")
+
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.visibility_of_element_located(
+        (By.CSS_SELECTOR, "[data-sortable-table]")
+    ))
+    
 
 @print_decorator
 def filtering(courses):
@@ -302,43 +443,62 @@ def extract_table_data(table_data):
                 
                 label = td['data-testid']
 
-                #spans_with_aria_labels = td.find_all('span', attrs={'aria-label': True})
-
                 if label == 'student_name':
-                    spans_with_aria_labels = td.find_all(lambda tag: tag.name == 'span' and tag.has_attr('aria-label'))
 
                     search_string = td.text
-                    name_regex = '(^[0-9A-Za-z\\u0100-\\u017FÀ-ÖØ-öø-ÿ\\s\\-\\(\\)\'\\.]+)'
-                    email_regex = '([A-z0-9\\.\\#\\-\\_\\|]+@[A-z0-9\\.\\-]{4,})'
-                    full_regex = f'{name_regex}(#[0-9]+)(\\s\\|\\s)?{email_regex}?'
 
-                    full_match = re.search(full_regex, search_string)
+                    # span_name: Tag = td.find_all(lambda tag: tag.name == 'span' and 'truncateText' in tag['class'])
+                    # span_email: Tag = td.find_all(lambda tag: tag.name == 'span' and 'screenReaderContent' in tag['class'])
 
-                    if full_match:
-                        name_found = False
-                        email_found = False
+                    span_name: Tag = td.select_one('div[class*=view] span[class*=truncateText]')
+                    span_email: Tag = td.select_one('span > span[class*=screenReaderContent]')
+
+                    if span_name or span_email:
+                        row_data[f'{label}_0'] = str(span_name.text).strip() if span_name else ''
+                        row_data[f'{label}_1'] = re.sub(r"\,\s*Email:\s*", " | ", re.sub(r"ID:\s*", "#", str(span_email.text))).strip() if span_email else ''
+                        
+
+                    #name_regex = '(^[0-9A-Za-z\\u0100-\\u017FÀ-ÖØ-öø-ÿ\\h\\-\\(\\)\']+)'
+                    #name_regex = r"(^[0-9A-Z\u0100-\u017FÀ-ÖØ-öø-ÿ\\h\-\(\)\']+)"
+                    #email_regex = '([A-z0-9\\.\\#\\-\\_\\|]+@[A-z0-9\\.\\-]{4,})'
+                    #email_regex = r"([A-Z0-9\.\#\-\_\|]+@[A-z0-9\.\-]{4,})"
+
+                    # name_regex = r"([0-9A-Z\u0100-\u017FÀ-ÖØ-öø-ÿ\\h\-\(\)\']+[^\S\r\n]{0,1})+"
+                    # email_regex = r"([A-Z0-9\.\#\-\_\|]+@[A-z0-9\.\-]{4,})"
+
+                    # #full_regex = f'{name_regex}(#[0-9]+)(\\s\\|\\s)?{email_regex}?'
+
+                    # #full_match = re.search(full_regex, search_string)
+
+                    # name_match = re.search(name_regex, search_string, re.I)
+                    # email_match = re.search(email_regex, search_string, re.I)
+
+                    # if name_match or email_match:
+                        
+                    #     row_data[f'{label}_0'] = name_match.group(0) if name_match else ''
+                    #     row_data[f'{label}_1'] = email_match.group(0) if email_match else ''
                         
                         # if <span> with aria-label exists, get name and/or email from that
-                        if len(spans_with_aria_labels) > 0:
-                            for span in spans_with_aria_labels:
-                                name_match = re.search(name_regex, span['aria-label'], re.I)
-                                email_match = re.search(email_regex, span['aria-label'], re.I)
-                                if name_match:
-                                    row_data[f'{label}_0'] = name_match.group(1)
-                                    name_found = True
-                                if email_match:
-                                    row_data[f'{label}_1'] = email_match.string
-                                    email_found = True 
+                        # if len(spans_with_aria_labels) > 0:
+                        #     for span in spans_with_aria_labels:
+                        #         name_match = re.search(name_regex, span['aria-label'], re.I)
+                        #         email_match = re.search(email_regex, span['aria-label'], re.I)
+                        #         if name_match:
+                        #             row_data[f'{label}_0'] = name_match.group(1)
+                        #             name_found = True
+                        #         if email_match:
+                        #             row_data[f'{label}_1'] = email_match.string
+                        #             email_found = True 
                         
                         # check if the full name and/or email were found in a span's aria-label property
                         # if not, get from innerText match
-                        if name_found is False:
-                            row_data[f'{label}_0'] = full_match.group(1)
-                        if email_found is False:
-                            if(len(full_match.groups()) > 1):
-                                row_data[f'{label}_1'] = ''.join(map(str, full_match.groups()[1:]))
-                            else:
-                                row_data[f'{label}_1'] = '—'
+                        # if name_found is False:
+                        #     row_data[f'{label}_0'] = full_match.group(1)
+                        # if email_found is False:
+                        #     if(len(full_match.groups()) > 1):
+                        #         row_data[f'{label}_1'] = ''.join(map(str, full_match.groups()[1:]))
+                        #     else:
+                        #         row_data[f'{label}_1'] = '—'
                         # otherwise, try to get name and/or email from td contents
                         # else:
                         #     if len(full_match.groups()) > 1:
@@ -348,40 +508,63 @@ def extract_table_data(table_data):
                         #         row_data[f'{label}_1'] = '—'
                     # if no regex match for td innerText, insert full innerText into first column
                     else:
-                        row_data[f'{label}_0'] = search_string
+                        column_text_preview = str(td.text).replace("\n", " ")[:10]
+                        print(bcolors.WARNING + f"WARNING: Could not process data for row \"{column_text_preview}...\". Skipping." + bcolors.ENDC)
+                        continue
                 elif label == 'product_name':
-                    span_with_aria_label = td.find(lambda tag: tag.name == 'span' and tag.has_attr('aria-label'))
+                    # span_with_aria_label = td.find(lambda tag: tag.name == 'span' and tag.has_attr('aria-label'))
 
-                    # if truncated text, get full listing name from aria-label and id from innerText
-                    if span_with_aria_label:
-                        row_data[f'{label}_0'] = span_with_aria_label['aria-label']
+                    # # if truncated text, get full listing name from aria-label and id from innerText
+                    # if span_with_aria_label:
+                    #     row_data[f'{label}_0'] = span_with_aria_label['aria-label']
 
-                        id_pattern = re.compile('[0-9]{4,}$')
+                    #     id_pattern = re.compile('[0-9]{4,}$')
 
-                        row_data[f'{label}_1'] = id_pattern.search(td.text).group(0)
+                    #     row_data[f'{label}_1'] = id_pattern.search(td.text).group(0)
                     
-                    # if no truncated text, get listing name and id from innerText
-                    else:
-                        id_pattern = re.compile('[0-9]{4,}$')
+                    # # if no truncated text, get listing name and id from innerText
+                    # else:
+                    #     id_pattern = re.compile('[0-9]{4,}$')
 
-                        match = id_pattern.search(td.text)
+                    #     match = id_pattern.search(td.text)
 
-                        if match:
-                            listing_id = match.group(0)
+                    #     if match:
+                    #         listing_id = match.group(0)
 
-                            screen_reader_span = td.find_all("span", class_=re.compile("screenReaderContent", re.IGNORECASE), limit=1)
+                    #         screen_reader_span = td.find_all("span", class_=re.compile("screenReaderContent", re.IGNORECASE), limit=1)
 
-                            # only listing names that overflow the cell contain a <span> element with the ...-screenReaderContent class
-                            if len(screen_reader_span) > 0:
-                                listing_name = screen_reader_span[0].text
-                            else:
-                                listing_name = td.text.replace(listing_id, "")
+                    #         # only listing names that overflow the cell contain a <span> element with the ...-screenReaderContent class
+                    #         if len(screen_reader_span) > 0:
+                    #             listing_name = screen_reader_span[0].text
+                    #         else:
+                    #             listing_name = td.text.replace(listing_id, "")
                             
-                            row_data[f'{label}_0'] = listing_name
-                            row_data[f'{label}_1'] = listing_id
-                        else:
-                            row_data[f'{label}_0'] = td.text
+                    #         row_data[f'{label}_0'] = listing_name
+                    #         row_data[f'{label}_1'] = listing_id
+                    #     else:
+                    #         row_data[f'{label}_0'] = td.text
 
+                    # try to find the <span> tag that contains the full name (only inserted when text istruncated)
+                    # if not found, there is no truncation, thus <a> tag text should have full name
+                    span_listing_name = td.select_one("a span[class*=screenReaderContent]")
+                    
+                    if span_listing_name:
+                        listing_name = str(span_listing_name.text).strip()
+                    else:
+                        anchor_listing_name = td.select_one('a')
+                        listing_name = str(anchor_listing_name.text).split("\n")[0] if anchor_listing_name else None
+                    
+                    # listing ID row always has the screenReaderContent <span> (I can't figure out why this is different for the life of me)
+                    span_listing_id = td.select_one('div + span > span[class*=screenReaderContent]')
+                    listing_id = str(span_listing_id.text).replace("ID:", "").strip() if span_listing_id else None
+
+                    if listing_name or listing_id:
+                        row_data[f'{label}_0'] = listing_name if listing_name else ""
+                        row_data[f'{label}_1'] = listing_id if listing_id else ""
+                    else:
+                        column_text_preview = str(td.text).replace("\n", " ")[:10]
+                        print(bcolors.WARNING + f"WARNING: Could not process data for row \"{column_text_preview}...\". Skipping." + bcolors.ENDC)
+                        continue
                 else:
                     row_data[label] = td.text
 
@@ -411,7 +594,7 @@ def extract_users(manually_filter_users):
     This will go to the users page, and optionally pause to allow for manual user filtering
     It will then go through each page and put the data in the excel
     """
-    driver.get('https://courses.cpe.ubc.ca/new_analytics/users')
+    driver.get('https://courses.cpe.ubc.ca/analytics/users')
 
     if manually_filter_users:
         button = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'button[data-automation="Filter__Show__Filters__Button"]')))
@@ -438,20 +621,22 @@ if __name__ == "__main__":
     # Optional command line arguments
     parser.add_argument('--mfe', action='store_true', help='Manually Filter Enrollments. Include this argument if you want the bot to pause when filtering enrollments')
     parser.add_argument('--mfu', action='store_true', help='Manually Filter Users. Include this argument if you want the bot to pause when filtering users')
-    parser.add_argument('--courses', nargs='+', choices=VALID_COURSES, default=VALID_COURSES, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
-    parser.add_argument('--status', nargs='+', choices=ENROLLMENT_STATUSES, default=ENROLLMENT_STATUSES, help='Indicate which enrollment statuses you wish to filter for. Example: --status Active Completed. Defaults to any status.')
+    parser.add_argument('--courses', nargs='+', choices=VALID_COURSES, default=VALID_COURSES, type=str.upper, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
+    parser.add_argument('--status', nargs='+', choices=ENROLLMENT_STATUSES, default=ENROLLMENT_STATUSES, type=str.capitalize, help='Indicate which enrollment statuses you wish to filter for. Example: --status Active Completed. Defaults to any status.')
 
     # Parse the command line arguments
     args = parser.parse_args()
     
     login()
-    filtering(args.courses)
+    #filtering(args.courses)
 
     # skip enrollment status filtering if all statuses are selected (redundant)
-    if(set(args.status) != set(ENROLLMENT_STATUSES)):
-        filter_enrollment_status(args.status)
+    # if(set(args.status) != set(ENROLLMENT_STATUSES)):
+    #     filter_enrollment_status(args.status)
+
+    filter_records_through_session_storage(args.courses, args.status)
     
-    filter_enrollment_date(args.mfe)
+    #filter_enrollment_date(args.mfe)
     enrollment_df = extract_enrollment_table()
     extract_users(args.mfu)
 
