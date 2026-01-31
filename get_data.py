@@ -66,6 +66,7 @@ VALID_COURSES = [
     "FAS",
     "CLF",
     "CGF",
+    "FCMo"
 ]
 FULL_OPTION_NAME = {
     "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
@@ -88,6 +89,7 @@ FULL_OPTION_NAME = {
     "FAS - ": "FAS - Online Micro-Certificate: Foundations of Advanced Silviculture",
     "CLF - ": "CLF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Liquid Fuels",
     "CGF - ": "CGF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Gaseous Fuels",
+    "FCMo - ": "FCMo - Online Micro-Certificate: Forest Carbon Modelling"
 }
 
 ENROLLMENT_STATUSES = ['Active', 'Completed', 'Concluded', 'Dropped']
@@ -172,7 +174,8 @@ CATALOG_PROGRAM_IDS = {
     "LLFM - Online Micro-Certificate: Landscape Level Forest Modeling": 1953,
     "SMS - Online Micro-Certificate: Strategic Management for Sustainability": 780,
     "TWS - Online Micro-Certificate: Tall Wood Structures": 941,
-    "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions": 1116
+    "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions": 1116,
+    "FCMo - Online Micro-Certificate: Forest Carbon Modelling": 2991
 }
 
 
@@ -243,6 +246,13 @@ def filter_records_through_session_storage(courses: list[str], statuses: list[st
 
     if not courses or len(courses) == 0:
         courses = VALID_COURSES
+    
+    num_filter_courses = len(courses)
+
+    if num_filter_courses > 20:
+        print(bcolors.WARNING + f"WARNING: More than 20 programs are selected. Since Catalog cannot filter for more than 20 programs, the last {num_filter_courses - 20} courses will be excluded." + bcolors.ENDC)
+        print(bcolors.WARNING + "Excluded courses: " + ", ".join(courses[20:]) + bcolors.ENDC)
+        courses = courses[:20]
 
     if not statuses or len(statuses) == 0:
         statuses = ENROLLMENT_STATUSES
@@ -444,7 +454,6 @@ def extract_table_data(table_data):
                 label = td['data-testid']
 
                 if label == 'student_name':
-
                     search_string = td.text
 
                     # span_name: Tag = td.find_all(lambda tag: tag.name == 'span' and 'truncateText' in tag['class'])
@@ -457,93 +466,12 @@ def extract_table_data(table_data):
                         row_data[f'{label}_0'] = str(span_name.text).strip() if span_name else ''
                         row_data[f'{label}_1'] = re.sub(r"\,\s*Email:\s*", " | ", re.sub(r"ID:\s*", "#", str(span_email.text))).strip() if span_email else ''
                         
-
-                    #name_regex = '(^[0-9A-Za-z\\u0100-\\u017FÀ-ÖØ-öø-ÿ\\h\\-\\(\\)\']+)'
-                    #name_regex = r"(^[0-9A-Z\u0100-\u017FÀ-ÖØ-öø-ÿ\\h\-\(\)\']+)"
-                    #email_regex = '([A-z0-9\\.\\#\\-\\_\\|]+@[A-z0-9\\.\\-]{4,})'
-                    #email_regex = r"([A-Z0-9\.\#\-\_\|]+@[A-z0-9\.\-]{4,})"
-
-                    # name_regex = r"([0-9A-Z\u0100-\u017FÀ-ÖØ-öø-ÿ\\h\-\(\)\']+[^\S\r\n]{0,1})+"
-                    # email_regex = r"([A-Z0-9\.\#\-\_\|]+@[A-z0-9\.\-]{4,})"
-
-                    # #full_regex = f'{name_regex}(#[0-9]+)(\\s\\|\\s)?{email_regex}?'
-
-                    # #full_match = re.search(full_regex, search_string)
-
-                    # name_match = re.search(name_regex, search_string, re.I)
-                    # email_match = re.search(email_regex, search_string, re.I)
-
-                    # if name_match or email_match:
-                        
-                    #     row_data[f'{label}_0'] = name_match.group(0) if name_match else ''
-                    #     row_data[f'{label}_1'] = email_match.group(0) if email_match else ''
-                        
-                        # if <span> with aria-label exists, get name and/or email from that
-                        # if len(spans_with_aria_labels) > 0:
-                        #     for span in spans_with_aria_labels:
-                        #         name_match = re.search(name_regex, span['aria-label'], re.I)
-                        #         email_match = re.search(email_regex, span['aria-label'], re.I)
-                        #         if name_match:
-                        #             row_data[f'{label}_0'] = name_match.group(1)
-                        #             name_found = True
-                        #         if email_match:
-                        #             row_data[f'{label}_1'] = email_match.string
-                        #             email_found = True 
-                        
-                        # check if the full name and/or email were found in a span's aria-label property
-                        # if not, get from innerText match
-                        # if name_found is False:
-                        #     row_data[f'{label}_0'] = full_match.group(1)
-                        # if email_found is False:
-                        #     if(len(full_match.groups()) > 1):
-                        #         row_data[f'{label}_1'] = ''.join(map(str, full_match.groups()[1:]))
-                        #     else:
-                        #         row_data[f'{label}_1'] = '—'
-                        # otherwise, try to get name and/or email from td contents
-                        # else:
-                        #     if len(full_match.groups()) > 1:
-                        #         row_data[f'{label}_0'] = full_match.group(1)
-                        #         row_data[f'{label}_1'] = ''.join(map(str,full_match.groups())[1:])
-                        #     else:
-                        #         row_data[f'{label}_1'] = '—'
                     # if no regex match for td innerText, insert full innerText into first column
                     else:
                         column_text_preview = str(td.text).replace("\n", " ")[:10]
                         print(bcolors.WARNING + f"WARNING: Could not process data for row \"{column_text_preview}...\". Skipping." + bcolors.ENDC)
                         continue
                 elif label == 'product_name':
-                    # span_with_aria_label = td.find(lambda tag: tag.name == 'span' and tag.has_attr('aria-label'))
-
-                    # # if truncated text, get full listing name from aria-label and id from innerText
-                    # if span_with_aria_label:
-                    #     row_data[f'{label}_0'] = span_with_aria_label['aria-label']
-
-                    #     id_pattern = re.compile('[0-9]{4,}$')
-
-                    #     row_data[f'{label}_1'] = id_pattern.search(td.text).group(0)
-                    
-                    # # if no truncated text, get listing name and id from innerText
-                    # else:
-                    #     id_pattern = re.compile('[0-9]{4,}$')
-
-                    #     match = id_pattern.search(td.text)
-
-                    #     if match:
-                    #         listing_id = match.group(0)
-
-                    #         screen_reader_span = td.find_all("span", class_=re.compile("screenReaderContent", re.IGNORECASE), limit=1)
-
-                    #         # only listing names that overflow the cell contain a <span> element with the ...-screenReaderContent class
-                    #         if len(screen_reader_span) > 0:
-                    #             listing_name = screen_reader_span[0].text
-                    #         else:
-                    #             listing_name = td.text.replace(listing_id, "")
-                            
-                    #         row_data[f'{label}_0'] = listing_name
-                    #         row_data[f'{label}_1'] = listing_id
-                    #     else:
-                    #         row_data[f'{label}_0'] = td.text
-
                     # try to find the <span> tag that contains the full name (only inserted when text istruncated)
                     # if not found, there is no truncation, thus <a> tag text should have full name
                     span_listing_name = td.select_one("a span[class*=screenReaderContent]")
@@ -621,7 +549,7 @@ if __name__ == "__main__":
     # Optional command line arguments
     parser.add_argument('--mfe', action='store_true', help='Manually Filter Enrollments. Include this argument if you want the bot to pause when filtering enrollments')
     parser.add_argument('--mfu', action='store_true', help='Manually Filter Users. Include this argument if you want the bot to pause when filtering users')
-    parser.add_argument('--courses', nargs='+', choices=VALID_COURSES, default=VALID_COURSES, type=str.upper, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
+    parser.add_argument('--courses', nargs='+', choices=VALID_COURSES, default=VALID_COURSES, type=str, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
     parser.add_argument('--status', nargs='+', choices=ENROLLMENT_STATUSES, default=ENROLLMENT_STATUSES, type=str.capitalize, help='Indicate which enrollment statuses you wish to filter for. Example: --status Active Completed. Defaults to any status.')
 
     # Parse the command line arguments

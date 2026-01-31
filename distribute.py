@@ -39,6 +39,7 @@ EXCELS = {
     "FAS": ("Foundations of Advanced Silviculture - Registration.xlsx"),
     "CLF": ("Advanced Life Cycle Assessment of Clean Liquid Fuels - Registration.xlsx"),
     "CGF": ("Advanced Life Cycle Assessment of Clean Gaseous Fuels - Registration.xlsx"),
+    "FCMo": ("Forest Carbon Modeling - Registrations.xlsx"),
 }
 
 # This is where to expect the header to be in the excel, necessary for finding the right column for data
@@ -92,8 +93,15 @@ def extract_user_data(row, user_data_row, user_grant_row):
             'Organization': user_data_row['custom_fields_organization'].values[0],
             'Title': user_data_row['custom_fields_title'].values[0],
             'Phone Number': user_data_row['custom_fields_phone-number'].values[0],
+            'Home Address': user_data_row['custom_fields_home-address'].values[0],
             'Mailing Address': user_data_row['custom_fields_mailing-address'].values[0],
-            'Self-Identify as Indigenous?': 'Yes' if user_data_row['custom_fields_indigenous-self-declaration'].astype(str).values[0].lower().strip() == '1' else 'No',
+            'Self-Identify as Indigenous?': ( 
+                # field implemented as checkbox (0/1 values)
+                'Yes' if user_data_row['custom_fields_indigenous-self-declaration'].astype(str).values[0].lower().strip() == '1' 
+                else 'No'
+            ), 
+            'Is Forestry Alum?': user_data_row['custom_fields_is-fof-alum'].values[0], # field implemented as "Yes/No" dropdown
+            'Relevant Degree(s)': user_data_row['custom_fields_relevant-degree-or-experience'].values[0]
         }
         data.update(extra)
 
@@ -121,7 +129,10 @@ def find_sheet(row):
         raise Exception(f"The file {excel_path} is not a valid Excel file.")
 
     workbook = load_workbook(filename=excel_path)
-    workbook.worksheets
+
+    if course_session not in workbook.sheetnames:
+        raise Exception(f"No sheet titled {course_session} found in {excel_path.name + '.' if len(excel_path.name) < 10 else excel_path.name[:10] + '...'}")
+    
     return (workbook[course_session], excel_path, workbook)
 
 def search_email_in_sheet(
@@ -229,12 +240,6 @@ def distribute_enrollment_data(df_enrollment, path_to_user_data, path_to_grant_d
             print(traceback.format_exc())
             print("SKIPPING...")
             continue
-
-        # try:
-        #     user_email = row['student_name_1'].split(' ')[2].lower().strip()
-        # except IndexError:
-        #     print("ERROR: Failed to find valid email address in student_name_1:", row['student_name_1'])
-        #     user_email = None
         
         user_email = str(row['student_name_1']).split("|")[-1].strip()
 
