@@ -20,32 +20,13 @@ from typing import TypedDict
 
 load_dotenv()
 
-# get selected browser from environment variables, default to Chrome
-browser = os.environ.get("BROWSER")
+# get selected btowser from environment variables, default to Chrome
+BROWSER = os.environ.get("BROWSER")
 
-if browser == "Edge":
-    from webdriver_manager.microsoft import EdgeChromiumDriverManager
-    from selenium.webdriver.edge.service import Service as EdgeService
+driver = None
 
-    driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()))
-elif browser == "Firefox":
-    from webdriver_manager.firefox import GeckoDriverManager
-    from selenium.webdriver.firefox.service import Service as FirefoxService
-
-    driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
-elif browser == "Chromium":
-    from webdriver_manager.core.utils import ChromeType
-    from selenium.webdriver.chrome.service import Service as ChromiumService
-    
-    driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()))
-else:
-    from webdriver_manager.chrome import ChromeDriverManager
-    from selenium.webdriver.chrome.service import Service as ChromeService
-
-    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
-
-# NOTE: KEEP THIS VALID_COURSES AND FULL_OPTION_NAME UP TO DATE
-VALID_COURSES = [
+# NOTE: KEEP THIS VALID_PROGRAMS AND FULL_OPTION_NAME UP TO DATE
+VALID_PROGRAMS = [
     "CBBD", 
     "CACE", 
     "CNR", 
@@ -68,6 +49,7 @@ VALID_COURSES = [
     "CGF",
     "FCMo"
 ]
+
 FULL_OPTION_NAME = {
     "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
     "CACE - ": "CACE - Online Micro-Certificate: Climate Action and Community Engagement",
@@ -105,15 +87,19 @@ class AccountFilter(TypedDict):
     id: int
     name: str
 
+ENROLMENTS_DATE_PRESET_KEY = 'enrollment_date_preset'
+ENROLMENTS_DATE_FROM_KEY = 'enrollment_date_from'
+ENROLMENTS_DATE_TO_KEY = 'enrollment_date_to'
+
 DEFAULT_ENROLMENTS_SETTINGS_OBJECT = {
     "filter": {
         "account_ids": [],
         "product_ids": [],
         "product_statuses": [],
         "student_ids": [],
-        "enrollment_date_preset": "past_week",
-        "enrollment_date_from": DEFAULT_CREATION_DATE_FROM,
-        "enrollment_date_to": DEFAULT_CREATION_DATE_TO,
+        ENROLMENTS_DATE_PRESET_KEY: "past_week",
+        ENROLMENTS_DATE_FROM_KEY: DEFAULT_CREATION_DATE_FROM,
+        ENROLMENTS_DATE_TO_KEY: DEFAULT_CREATION_DATE_TO,
         "enrollment_statuses": [],
         "completion_date_preset": "all_time",
         "completion_date_from": "",
@@ -131,6 +117,10 @@ DEFAULT_ENROLMENTS_SETTINGS_OBJECT = {
     "baseAccountId": 512
 }
 
+USERS_DATE_PRESET_KEY = 'registration_date_preset'
+USERS_DATE_FROM_KEY = 'registration_date_from'
+USERS_DATE_TO_KEY = 'registration_date_to'
+
 DEFAULT_USERS_SETTINGS_OBJECT = {
     "filter": {
         "account_ids": [],
@@ -140,9 +130,9 @@ DEFAULT_USERS_SETTINGS_OBJECT = {
         "last_enrollment_date_preset": "all_time",
         "last_enrollment_date_from": "",
         "last_enrollment_date_to": "",
-        "registration_date_preset": "past_week",
-        "registration_date_from": DEFAULT_CREATION_DATE_FROM,
-        "registration_date_to": DEFAULT_CREATION_DATE_TO
+        USERS_DATE_PRESET_KEY: "past_week",
+        USERS_DATE_FROM_KEY: DEFAULT_CREATION_DATE_FROM,
+        USERS_DATE_TO_KEY: DEFAULT_CREATION_DATE_TO
     },
     "page": 0,
     "pageSize": 10,
@@ -178,6 +168,99 @@ CATALOG_PROGRAM_IDS = {
     "FCMo - Online Micro-Certificate: Forest Carbon Modelling": 2991
 }
 
+enrolments_settings = dict(DEFAULT_ENROLMENTS_SETTINGS_OBJECT)
+users_settings = dict(DEFAULT_USERS_SETTINGS_OBJECT)
+
+def display_filter_config_gui():
+    import tkinter as tk
+    from tkinter import ttk
+    from tkcalendar import DateEntry
+
+    global enrolments_settings, users_settings
+
+    enrolments_settings['filter'][ENROLMENTS_DATE_PRESET_KEY] = 'custom'
+    users_settings['filter'][USERS_DATE_PRESET_KEY] = 'custom'
+
+    enrolments_initial_from = enrolments_settings['filter']['enrollment_date_from']
+    enrolments_initial_to = enrolments_settings['filter']['enrollment_date_to']
+
+    # initialize the app and create a frame to hold widgets
+    root = tk.Tk()
+    frm = ttk.Frame(root, padding=10)
+    frm.grid()
+
+    # define labels and date widgets to filter enrolments and users by
+    ttk.Label(frm, text='FILTER RECORDS').grid(row=0, column=0, columnspan=5)
+    ttk.Label(frm, text="From:").grid(row=1, column=0)
+
+    sv_date_from = tk.StringVar()
+    sv_date_to = tk.StringVar()
+
+    start_date_entry = DateEntry(
+        frm, 
+        date_pattern='yyyy-MM-dd',
+        textvariable=sv_date_from
+    )
+    
+    start_date_entry.grid(row=1, column=1)
+
+    sv_date_from.set(enrolments_initial_from)
+
+    ttk.Label(frm, text='-').grid(row=1, column=2)
+
+    ttk.Label(frm, text="To:").grid(row=1, column=3)
+
+    end_date_entry = DateEntry(
+        frm,
+        date_pattern='yyyy-MM-dd',
+        textvariable=sv_date_to
+    )
+    
+    end_date_entry.grid(row=1, column=4)
+
+    sv_date_to.set(enrolments_initial_to)
+
+    def set_enrolments_date_from(sv, index, mode):
+        from_date = sv_date_from.get()
+
+        enrolments_settings['filter'][ENROLMENTS_DATE_FROM_KEY] = from_date 
+        users_settings['filter'][USERS_DATE_FROM_KEY] = from_date
+
+    def set_enrolments_date_to(sv, index, mode):
+        to_date = sv_date_to.get()
+
+        enrolments_settings['filter'][ENROLMENTS_DATE_TO_KEY] = to_date
+        users_settings['filter'][USERS_DATE_TO_KEY] = to_date
+
+    sv_date_from.trace_add('write', set_enrolments_date_from)
+    sv_date_to.trace_add('write', set_enrolments_date_to)
+
+    ttk.Button(frm, text="Save", command=root.destroy).grid(row=2, column=0, columnspan=5)
+    root.mainloop()
+
+def initialize_selenium_driver():
+    global driver
+
+    if BROWSER == "Edge":
+        from webdriver_manager.microsoft import EdgeChromiumDriverManager
+        from selenium.webdriver.edge.service import Service as EdgeService
+
+        driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()))
+    elif BROWSER == "Firefox":
+        from webdriver_manager.firefox import GeckoDriverManager
+        from selenium.webdriver.firefox.service import Service as FirefoxService
+
+        driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
+    elif BROWSER == "Chromium":
+        from webdriver_manager.core.utils import ChromeType
+        from selenium.webdriver.chrome.service import Service as ChromiumService
+        
+        driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()))
+    else:
+        from webdriver_manager.chrome import ChromeDriverManager
+        from selenium.webdriver.chrome.service import Service as ChromeService
+
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
 
 def print_decorator(func):
     # This just prints the function name before and after, useful for debugging
@@ -205,7 +288,6 @@ def append_data_to_excel(filename, df_new_data):
 
     df_combined.to_excel(filename, index=False)
     return df_new_data
-
 
 @print_decorator
 def login():
@@ -241,28 +323,24 @@ def check_page_source(driver, option):
     return False
 
 @print_decorator
-def filter_records_through_session_storage(courses: list[str], statuses: list[str]):
+def filter_records_through_session_storage(programs: list[str], statuses: list[str]):
     """ Adds the selected program filters to the session storage and navigates to enrolments page. """
 
-    if not courses or len(courses) == 0:
-        courses = VALID_COURSES
-    
-    num_filter_courses = len(courses)
-
-    if num_filter_courses > 20:
-        print(bcolors.WARNING + f"WARNING: More than 20 programs are selected. Since Catalog cannot filter for more than 20 programs, the last {num_filter_courses - 20} courses will be excluded." + bcolors.ENDC)
-        print(bcolors.WARNING + "Excluded courses: " + ", ".join(courses[20:]) + bcolors.ENDC)
-        courses = courses[:20]
+    if not programs or len(programs) == 0:
+        programs = VALID_PROGRAMS
 
     if not statuses or len(statuses) == 0:
         statuses = ENROLLMENT_STATUSES
 
     enrolments_settings_dict = dict(DEFAULT_ENROLMENTS_SETTINGS_OBJECT)
 
-    selected_course_abbreviations = [course + " - " for course in courses]
+    selected_program_abbreviations = [program + " - " for program in programs]
+
+    # reset the account filter array in case script must do multiple runs
+    enrolments_settings_dict["filter"]["account_ids"] = []
 
     # add the course catalog filters
-    for course_abbrev in selected_course_abbreviations:
+    for course_abbrev in selected_program_abbreviations:
         full_course_catalog_name = FULL_OPTION_NAME[course_abbrev]
         course_catalog_id = CATALOG_PROGRAM_IDS[full_course_catalog_name]
 
@@ -549,23 +627,35 @@ if __name__ == "__main__":
     # Optional command line arguments
     parser.add_argument('--mfe', action='store_true', help='Manually Filter Enrollments. Include this argument if you want the bot to pause when filtering enrollments')
     parser.add_argument('--mfu', action='store_true', help='Manually Filter Users. Include this argument if you want the bot to pause when filtering users')
-    parser.add_argument('--courses', nargs='+', choices=VALID_COURSES, default=VALID_COURSES, type=str, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
+    parser.add_argument('--program', nargs='+', choices=VALID_PROGRAMS, default=VALID_PROGRAMS, type=str, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
     parser.add_argument('--status', nargs='+', choices=ENROLLMENT_STATUSES, default=ENROLLMENT_STATUSES, type=str.capitalize, help='Indicate which enrollment statuses you wish to filter for. Example: --status Active Completed. Defaults to any status.')
+    parser.add_argument('--filter', action='store_true', help='Display a window to customize the default filters.')
 
     # Parse the command line arguments
     args = parser.parse_args()
+
+    # check if user wants to display the filtering GUI
+    if args.filter is True:
+        display_filter_config_gui()
+
+    initialize_selenium_driver()
     
     login()
-    #filtering(args.courses)
 
-    # skip enrollment status filtering if all statuses are selected (redundant)
-    # if(set(args.status) != set(ENROLLMENT_STATUSES)):
-    #     filter_enrollment_status(args.status)
+    # divide the program list to account for the 20 filter limit
+    total_runs = (len(args.program) // 20) + 1
 
-    filter_records_through_session_storage(args.courses, args.status)
-    
-    #filter_enrollment_date(args.mfe)
-    enrollment_df = extract_enrollment_table()
-    extract_users(args.mfu)
+    if total_runs > 1:
+        print(bcolors.OKCYAN + f"INFO: More than 20 programs selected. The script will perform data extraction and distribution in {total_runs} batches." + bcolors.ENDC)
 
-    distribute.distribute_enrollment_data(enrollment_df, os.environ.get("RAW_DATA_PATH_USERS"), os.environ.get("PROCESSED_DATA_PATH"))
+    for i in range(total_runs):
+        programs = args.program[20*i:20*(i+1)]
+
+        print(bcolors.OKCYAN + f"INFO: Extracting data for programs: {', '.join(programs)}" + bcolors.ENDC)
+        filter_records_through_session_storage(programs, args.status)
+        
+        #filter_enrollment_date(args.mfe)
+        enrollment_df = extract_enrollment_table()
+        extract_users(args.mfu)
+
+        distribute.distribute_enrollment_data(enrollment_df, os.environ.get("RAW_DATA_PATH_USERS"), os.environ.get("PROCESSED_DATA_PATH"))
