@@ -76,7 +76,7 @@ Grant amount to give -> Received FSG?, Grant Amount
 def extract_user_data(row, user_data_row, user_grant_row):
     """ This combines the data from the various sheets into the format we want """
     try:
-        email = str(row['student_name_1']).split("|")[-1]
+        email = str(row['student_name_1']).split("|")[-1].strip()
     except IndexError:
         email = None
 
@@ -136,7 +136,7 @@ def find_sheet(row):
     return (workbook[course_session], excel_path, workbook)
 
 def search_email_in_sheet(
-    product_name: str, 
+    product_name: str,
     sheet: Worksheet | ReadOnlyWorksheet | WriteOnlyWorksheet | Chartsheet, 
     email: str
 ):
