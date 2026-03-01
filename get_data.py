@@ -371,9 +371,13 @@ def filter_records_through_session_storage(programs: list[str], statuses: list[s
     driver.get("https://courses.cpe.ubc.ca/analytics/enrollments")
 
     wait = WebDriverWait(driver, 10)
-    wait.until(EC.visibility_of_element_located(
-        (By.CSS_SELECTOR, "[data-sortable-table]")
-    ))
+
+    try:
+        wait.until(EC.visibility_of_element_located(
+            (By.CSS_SELECTOR, "[data-sortable-table]")
+        ))
+    except TimeoutException:
+        return
     
 
 @print_decorator
