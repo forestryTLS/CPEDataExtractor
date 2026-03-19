@@ -387,6 +387,10 @@ def filtering(courses):
     button = wait.until(EC.visibility_of_element_located((By.XPATH,  "//button[@data-automation='Filter__Show__Filters__Button']")))
 
     button.click()
+
+    # wait until reset button is visible and click (important for runs involving more than 20 programs)
+    reset_defaults_button = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'button[data-testid="filters-reset-to-defaults-button"]')))
+    reset_defaults_button.click()
     
     # Wait until the dropdown menu is visible
     dropdown_menu = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')))
@@ -652,14 +656,24 @@ if __name__ == "__main__":
     if total_runs > 1:
         print(bcolors.OKCYAN + f"INFO: More than 20 programs selected. The script will perform data extraction and distribution in {total_runs} batches." + bcolors.ENDC)
 
+    extract_users(args.mfu)
+
+    # navigate to enrollments
+    driver.get("https://courses.cpe.ubc.ca/analytics/enrollments")
+    
     for i in range(total_runs):
         programs = args.program[20*i:20*(i+1)]
 
         print(bcolors.OKCYAN + f"INFO: Extracting data for programs: {', '.join(programs)}" + bcolors.ENDC)
-        filter_records_through_session_storage(programs, args.status)
+        #filter_records_through_session_storage(programs, args.status)
+
+        # revert back to UI filtering (Catalog no longer uses session storage for filtering 😭 )
+        filtering(programs)
+        filter_enrollment_status(args.status)
+        filter_enrollment_date(args.mfe)
         
         #filter_enrollment_date(args.mfe)
         enrollment_df = extract_enrollment_table()
-        extract_users(args.mfu)
 
         distribute.distribute_enrollment_data(enrollment_df, os.environ.get("RAW_DATA_PATH_USERS"), os.environ.get("PROCESSED_DATA_PATH"))
+    
