@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from enum import StrEnum
 
 class bcolors:
     HEADER = '\033[95m'
@@ -96,3 +97,61 @@ DEFAULT_USERS_SETTINGS_OBJECT = {
     "showChart": True,
     "baseAccountId": 512
 }
+
+EXCELS = {
+    "CBBD": ("Circular Bioeconomy Business Development - Registrations.xlsx"),
+    "CACE": ("Climate Action and Community Engagement - Registrations.xlsx"),
+    "CVA": ("Climate Vulnerability and Adaptation - Registrations.xlsx"),
+    "CNR": ("Co-Management of Natural Resources - Registrations.xlsx"),
+    "CSRP": ("Communication Strategies for Resource Practitioners - Registrations.xlsx"),
+    "EFO": ("Environmental Footprints of Organizations - Registrations.xlsx"),
+    "FSTB": ("Fire Safety for Timber Buildings - Registrations.xlsx"),
+    "FCM": ("Forest Carbon Management - Registrations.xlsx"),
+    "FHM": ("Forest Health Management - Registrations.xlsx"),
+    "HTC": ("Hybrid Timber Construction - Registrations.xlsx"),
+    "SMS": ("Strategic Management for Sustainability - Registrations.xlsx"),
+    "TWS": ("Tall Wood Structures - Registrations.xlsx"),
+    "ZCBS": ("Zero Carbon Building Solutions - Registrations.xlsx"),
+    "FMP": ("Forest Management Planning - Registrations.xlsx"),
+    "EBSC": ("Engineered Bamboo for Sustainable Construction - Registrations.xlsx"),
+    "LCACF": ("Life Cycle Assessment of Clean Fuels - Registrations.xlsx"),
+    "LLFM": ("Landscape Level Forest Modeling - Registrations.xlsx"),
+    "FAS": ("Foundations of Advanced Silviculture - Registration.xlsx"),
+    "CLF": ("Advanced Life Cycle Assessment of Clean Liquid Fuels - Registration.xlsx"),
+    "CGF": ("Advanced Life Cycle Assessment of Clean Gaseous Fuels - Registration.xlsx"),
+    "FCMo": ("Forest Carbon Modeling - Registrations.xlsx"),
+}
+
+HEADER_ROW_IDX = 1
+
+class ReportColumn(StrEnum):
+    FULL_NAME = "Full Name"
+    EMAIL_ADDRESS = "Email Address"
+    ORGANIZATION = "Organization"
+    TITLE = "Title"
+    USER_ID = "Student Catalog ID"
+    LISTING_IDS = "Listing IDs"
+    PHONE_NUMBER = "Phone Number"
+    HOME_ADDRESS = "Home Address"
+    IS_ALUM = "Is Forestry Alum?",
+    INDIGENOUS_IDENTITY = "Self-Identify as Indigenous?"
+    MAILING_ADDRESS = "Mailing Address"
+    DEGREES_EXPERIENCE = "Relevant Degrees or Experience"
+    PROGRAM_START = "Program Start Date"
+    PROGRAM_EXPIRY = "Program Expiry Date"
+    SINGLE_LISTING_ID = "Listing ID"
+    CATALOG_NAME = "Catalog"
+
+REPORT_COLUMNS_TO_POPULATE = [
+    ReportColumn.FULL_NAME,
+    ReportColumn.ORGANIZATION,
+    ReportColumn.TITLE,
+    ReportColumn.USER_ID,
+    ReportColumn.EMAIL_ADDRESS,
+    ReportColumn.PHONE_NUMBER,
+    ReportColumn.HOME_ADDRESS,
+    ReportColumn.IS_ALUM,
+    ReportColumn.INDIGENOUS_IDENTITY,
+    ReportColumn.MAILING_ADDRESS,
+    ReportColumn.DEGREES_EXPERIENCE
+]

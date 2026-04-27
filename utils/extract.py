@@ -1,7 +1,6 @@
-import json
-from enum import StrEnum
 import re
-from typing import TypedDict
+from contextlib import contextmanager
+import logging
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -19,12 +18,6 @@ from bs4.element import Tag
 
 import pandas as pd
 
-from utils.logging import bcolors
-from utils.common import (
-    ENROLLMENT_STATUSES,
-    CERTIFICATE_PROGRAMS
-)
-
 RE_ID_EMAIL_SPLIT = re.compile(r'\s*(?:Email:|\|)\s*', re.I)
 RE_CATALOG_ID_SEARCH = re.compile(r'(#|ID:\s)(?P<id>\d+)')
 RE_CATALOG_PROG_NAME_SPLIT = re.compile(r'(?:\s*\-*\s)')
@@ -33,9 +26,7 @@ RE_CONSECUTIVE_SPACES = re.compile(r'\s{2,}')
 
 type SeleniumDriver = EdgeWebDriver | FirefoxWebDriver | ChromiumDriver | ChromeWebDriver
 
-
-
-FULL_OPTION_NAME = {
+FULL_PROGRAM_CATALOG_NAMES = {
     "CBBD - ": "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development",
     "CACE - ": "CACE - Online Micro-Certificate: Climate Action and Community Engagement",
     "CNR - ": 'CNR - Online Micro-Certificate: Co-Management of Natural Resources',
@@ -58,14 +49,6 @@ FULL_OPTION_NAME = {
     "CGF - ": "CGF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Gaseous Fuels",
     "FCMo - ": "FCMo - Online Micro-Certificate: Forest Carbon Modelling"
 }
-
-# Configuration to quickly set filters for analytics search
-SESSION_STORAGE_ENROLMENTS_SETTINGS_KEY = "analytics-settings-enrollments"
-SESSION_STORAGE_USERS_SETTINGS_KEY = "analytics-settings-users"
-
-class AccountFilter(TypedDict):
-    id: int
-    name: str
 
 CATALOG_PROGRAM_IDS = {
     "CACE - Online Micro-Certificate: Climate Action and Community Engagement": 526,
@@ -94,7 +77,7 @@ CATALOG_PROGRAM_IDS = {
 CATALOG_COL_ID_NAME_MAP = {
     "student_name": "Full Name",
     "student_id": "Student Catalog ID",
-    "student_email": "Student Email",
+    "student_email": "Email Address",
     "account_name": "Catalog",
     "program_name": "Program",
     "product_name": "Listing",
@@ -103,8 +86,9 @@ CATALOG_COL_ID_NAME_MAP = {
     "product_status": "Listing Status",
     "canvas_course_id": "Canvas Course ID",
     "canvas_section_id": "Canvas Section ID",
-    "enrolment_id": "Enrollment ID",
-    "enrolment_status": "Enrollment Status",
+    "enrollment_id": "Enrollment ID",
+    "enrollment_status": "Enrollment Status",
+    "enrollment_date": "Enrollment Date",
     "custom_fields_relevant-degree-or-experience": "Relevant Degrees or Experience",
     "certificate_offered": "Certificate",
     "requirement_details": "Completion Percentage",
@@ -121,98 +105,161 @@ CATALOG_COL_ID_NAME_MAP = {
     "custom_fields_title": "Title",
 }
 
+logger = logging.getLogger(__name__)
+
+@contextmanager
 def initialize_selenium_driver(browser: str):
-    if browser == "Edge":
-        from webdriver_manager.microsoft import EdgeChromiumDriverManager
-        from selenium.webdriver.edge.service import Service as EdgeService
+    try:
+        if browser == "Edge":
+            from webdriver_manager.microsoft import EdgeChromiumDriverManager
+            from selenium.webdriver.edge.service import Service as EdgeService
 
-        driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()))
-    elif browser == "Firefox":
-        from webdriver_manager.firefox import GeckoDriverManager
-        from selenium.webdriver.firefox.service import Service as FirefoxService
+            driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()))
+        elif browser == "Firefox":
+            from webdriver_manager.firefox import GeckoDriverManager
+            from selenium.webdriver.firefox.service import Service as FirefoxService
 
-        driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
-    elif browser == "Chromium":
-        from webdriver_manager.core.utils import ChromeType
-        from selenium.webdriver.chrome.service import Service as ChromiumService
-        
-        driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()))
-    else:
-        from webdriver_manager.chrome import ChromeDriverManager
-        from selenium.webdriver.chrome.service import Service as ChromeService
+            driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
+        elif browser == "Chromium":
+            from webdriver_manager.core.utils import ChromeType
+            from selenium.webdriver.chrome.service import Service as ChromiumService
+            
+            driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()))
+        else:
+            logger.warning(f"No driver defined for browser {browser}. Defaulting to Chrome driver.")
 
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
+            from webdriver_manager.chrome import ChromeDriverManager
+            from selenium.webdriver.chrome.service import Service as ChromeService
 
-    return driver
+            driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
+    except Exception as e:
+        logger.critical(
+            f"Failed to initialize Selenium driver for browser {browser}.",
+            exc_info=e
+        )
+        raise
 
-def login_to_canvas_catalog(driver: SeleniumDriver):
+    try:
+        yield driver
+    finally:
+        driver.close()
+
+def login_to_canvas_catalog(
+        driver: SeleniumDriver,
+        next_url: str = "https://courses.cpe.ubc.ca/analytics/users"
+    ):
     """ Open Catalog Analytics URL for enrolments and wait for user to authenticate. By default, will wait for 90 seconds. """
-    driver.get("https://courses.cpe.ubc.ca/analytics/enrollments")
+    driver.get(next_url)
+
     # Click the login button
     link = driver.find_element(By.XPATH, '//a[@href="http://ubccpe.instructure.com/login/saml"]')
     link.click()
 
     login_timeout_seconds = 90
+    try:
+        wait = WebDriverWait(driver, login_timeout_seconds)
+        wait.until(EC.url_contains(next_url))
+    except TimeoutError:
+        logger.critical(f"Timed out while waiting for user to log into Canvas Catalog. Waited {login_timeout_seconds} seconds.")
+        raise
+    except Exception as e:
+        logger.critical(
+            f"An error occurred while waiting for user to log into Canvas Catalog.\n> %s %s",
+            e.__class__.__name__,
+            str(e)
+        )
+        raise
 
-    wait = WebDriverWait(driver, login_timeout_seconds)
-    wait.until(EC.url_contains('enrollments'))
+def find_program_dropdown_option(
+    driver: SeleniumDriver,
+    program_name: str
+):
+    """ Checks the current page's HTML for an instance of `program_name` in a `<div title="...">` element and returns `True` if found. """
+    soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-def set_enrollments_program_filters(
-    enrollments_settings: dict,
+    divs_with_title = soup.find_all('div', {'title': True})
+
+    for div in divs_with_title:
+        text = div.get_text()
+        
+        # Search for the pattern in the text
+        pattern = re.escape(program_name)
+        found = re.search(pattern, text)
+        
+        if found:
+            return True
+    
+    return False
+
+def set_catalog_filters_via_ui(
+    driver: SeleniumDriver,
     programs: list[str]
 ):
-    """ Format the selected programs as required by the Catalog Analytics session storage filters. """
+    """ 
+    Filters for the provided `programs` by finding and selecting the corresponding catalogs on the Catalog Analytics filter UI. 
+    `programs` should be limited to at most 20 elements. Raises an exception is more than 20 elements are provided.
+    """
 
-    if len(programs) == 0:
-        programs = CERTIFICATE_PROGRAMS
-
-    # reset the account filter array in case script must do multiple runs
-    enrollments_settings["filter"]["account_ids"] = []
-
-    selected_program_abbreviations = [program + " - " for program in programs]
-
-    for course_abbrev in selected_program_abbreviations:
-        full_course_catalog_name = FULL_OPTION_NAME[course_abbrev]
-        course_catalog_id = CATALOG_PROGRAM_IDS[full_course_catalog_name]
-
-        # add the course to the account filters
-        enrollments_settings["filter"]["account_ids"].append(
-            AccountFilter(
-                id=course_catalog_id,
-                name=full_course_catalog_name
-            )
-        )
+    if len(programs) > 20:
+        logger.critical("An error occurred while filtering programs via the UI. Cannot filter for more than 20 programs at once.")
+        raise Exception("Cannot filter for more than 20 programs at once.")
     
-    return enrollments_settings
-
-def set_enrollment_status_filters(
-    enrollments_settings: dict,
-    statuses: list[str]
-):
-    """ Format the selected statuses as required by the Catalog Analytics session storage filters. """
-    if len(statuses) == 0:
-        statuses = ENROLLMENT_STATUSES
-
-    for status in statuses:
-        enrollments_settings["filter"]["enrollment_statuses"].append(
-            {
-                "id": status.upper(),
-                "label": status
-            }
+    # click the "Filter" button and wait until the dropdown menu is visible
+    try:
+        wait = WebDriverWait(driver, 10)
+        button = wait.until(EC.visibility_of_element_located((By.XPATH,  "//button[@data-automation='Filter__Show__Filters__Button']")))
+    except TimeoutException:
+        logger.critical("Could not find \"Filter\" button. Unable to proceed with scraping.")
+        raise
+    except Exception as e:
+        logger.critical(
+            "Failed to proceed with filtering.\n> %s %s",
+            e.__class__.__name__,
+            str(e)
         )
-    
-    return enrollments_settings
+        raise
 
-def set_record_filters_via_session_storage(
-    driver: SeleniumDriver,
-    enrollments_settings: dict,
-    users_settings: dict
-):
-    """ Sets the Catalog Analytics filters using session storage. """
+    button.click()
 
-    driver.execute_script(f'sessionStorage.setItem("{SESSION_STORAGE_ENROLMENTS_SETTINGS_KEY}", JSON.stringify({json.dumps(enrollments_settings)}))')
+    dropdown_menu = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')))
+    dropdown_menu.click()
 
-    driver.execute_script(f'sessionStorage.setItem("{SESSION_STORAGE_USERS_SETTINGS_KEY}", JSON.stringify({json.dumps(users_settings)}))')
+    """
+    catalog names are formatted as follows:
+        e.g
+        (PROGRAM) CACE - Online Micro-Certificate...
+        (COURSE)  CACE Course 1
+    thus, we select only program catalogs
+    """
+    program_hints = [f"{program} - " for program in programs]
+
+    for hint in program_hints:
+        dropdown_menu = driver.find_element(By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')
+        dropdown_menu.clear()
+        dropdown_menu.send_keys(hint)
+
+        # wait for options to load and select the corresponding dropdown option if found using keyboard input
+        try:
+            wait.until(lambda driver: find_program_dropdown_option(driver, FULL_PROGRAM_CATALOG_NAMES[hint]))
+
+            catalog_filter = driver.find_element(By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')
+            catalog_filter.send_keys(Keys.ARROW_DOWN)
+            catalog_filter.send_keys(Keys.ENTER)
+        except (TimeoutException, KeyboardInterrupt):
+            logger.error(f"Could not find dropdown option for program: {hint.split("-")[0].strip()}. Skipping.")
+
+
+def click_apply_filters(driver: SeleniumDriver):
+    """ Find and click the "Apply" button within the "Filter" modal. """
+    try:
+        apply = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[form="filter-panel-form"]'))
+        )
+        apply.click()
+    except (NoSuchElementException, TimeoutException):
+        logger.warning("Couldn't find \"Apply\" button to click. Resuming execution.")
+
+        
 
 def find_and_click_pagination_next_button(driver: SeleniumDriver):
     """ Attempt to find the 'next page' button in Catalog Analytics pagination and click it if it exists. If button is found, returns True. Otherwise, returns False. """
@@ -224,37 +271,37 @@ def find_and_click_pagination_next_button(driver: SeleniumDriver):
         button_next_page = div_pagination.find_element(By.CSS_SELECTOR, "li:has(button[aria-current='page']) + li > button") 
             
         if button_next_page:
-            print(f"Navigating to page {button_next_page.text}...")
+            logger.debug(f"Navigating to page {button_next_page.text}.")
             driver.execute_script("arguments[0].click();", button_next_page)
             return True
         
         return False
     except NoSuchElementException:
-        print("No additional pages found. Proceeding...")
+        logger.debug("No additional pages found.")
         return False
-    
+
 def convert_df_columns_to_numeric(df: pd.DataFrame):
     """ Attempt to convert the provided DataFrame's columns to numeric. This step aims to mitigate comparison errors caused by Excel's automatic conversion of numeric data. """
     for column in df.columns:
         try:
             df[column] = pd.to_numeric(df[column], errors='raise')
         except (ValueError, TypeError):
+            logger.debug(f"Failed to convert column {column} to numeric. This column will be ignored.")
             pass  # Ignore columns that cannot be converted to numeric
 
     return df
 
-class AnalyticsTables(StrEnum):
-    ENROLLMENTS = 'enrolments'
-    USERS = 'users'
-
 def extract_table_data_to_df(driver: SeleniumDriver):
     """ Attempt to find a table on the current page and extract its data to a DataFrame. """
     table_data = []
+
+    logger.debug("Beginning paginated result extraction.")
     
     while True:
         try:
             WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.TAG_NAME, 'table')))
         except TimeoutException:
+            logger.debug("No data to extract. Could not find a <table> element in the current page.")
             return None
         
         soup = BeautifulSoup(driver.page_source.encode("utf-8"), 'html.parser')
@@ -287,9 +334,9 @@ def extract_table_data_to_df(driver: SeleniumDriver):
                                 if len(id_email_split) > 1:
                                     raw_student_id, raw_email_address = id_email_split[:2]
                                 elif len(id_email_split) == 1:
-                                    raw_student_id, raw_email_address = id_email_split[0]
+                                    raw_student_id = raw_email_address = id_email_split[0]
                                 else:
-                                    raw_student_id, raw_email_address = str(span_id_email.text).strip()
+                                    raw_student_id = raw_email_address = str(span_id_email.text).strip()
 
                                 row_data[CATALOG_COL_ID_NAME_MAP['student_email']] = raw_email_address.strip()
 
@@ -301,7 +348,8 @@ def extract_table_data_to_df(driver: SeleniumDriver):
                                     row_data[CATALOG_COL_ID_NAME_MAP['student_id']] = raw_student_id
                         else:
                             column_text_preview = str(td.text).replace("\n", " ")[:10]
-                            print(bcolors.WARNING + f"WARNING: Could not process data for row \"{column_text_preview}...\". Skipping." + bcolors.ENDC)
+
+                            logger.debug(f"Could not process data in cell under \"{label}\" column. Preview: \"{column_text_preview}...\" This cell will be skipped.")
                             continue
                     elif label == 'product_name':
                         # try to find the <span> tag that contains the full name (only inserted when text is truncated)
@@ -346,7 +394,7 @@ def extract_table_data_to_df(driver: SeleniumDriver):
                             row_data[CATALOG_COL_ID_NAME_MAP['program_name']] = catalog_name_split[0]
                     else:
                         if label in CATALOG_COL_ID_NAME_MAP:
-                            row_data[CATALOG_COL_ID_NAME_MAP[label]] = str(td.text).strip()                     
+                            row_data[CATALOG_COL_ID_NAME_MAP[label]] = str(td.text).strip().replace("\n", " ")              
             
             if row_data:
                 table_data.append(row_data)
