@@ -50,30 +50,6 @@ FULL_PROGRAM_CATALOG_NAMES = {
     "FCMo - ": "FCMo - Online Micro-Certificate: Forest Carbon Modelling"
 }
 
-CATALOG_PROGRAM_IDS = {
-    "CACE - Online Micro-Certificate: Climate Action and Community Engagement": 526,
-    "CBBD - Online Micro-Certificate: Circular Bioeconomy Business Development": 1581,
-    "CGF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Gaseous Fuels": 2693,
-    "CLF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Liquid Fuels": 2569,
-    "CNR - Online Micro-Certificate: Co-Management of Natural Resources": 521,
-    "CSRP - Online Micro-Certificate: Communication Strategies for Resource Practitioners": 785,
-    "CVA - Online Micro-Certificate: Climate Vulnerability & Adaptation": 515,
-    "EBSC - Online Micro-Certificate: Engineered Bamboo for Sustainable Construction": 1958,
-    "EFO - Online Micro-Certificate: Environmental Footprints of Organizations": 1112,
-    "FAS - Online Micro-Certificate: Foundations of Advanced Silviculture": 2654,
-    "FCM - Online Micro-Certificate: Forest Carbon Management": 520,
-    "FHM - Online Micro-Certificate: Forest Health Management": 946,
-    "FMP - Online Micro-Certificate: Forest Management Planning": 1723,
-    "FSTB - Online Micro-Certificate: Fire Safety for Timber Buildings": 951,
-    "HTC - Online Micro-Certificate: Hybrid Timber Construction": 956,
-    "LCACF - Online Micro-Certificate: Life Cycle Assessment in Clean Fuels": 1944,
-    "LLFM - Online Micro-Certificate: Landscape Level Forest Modeling": 1953,
-    "SMS - Online Micro-Certificate: Strategic Management for Sustainability": 780,
-    "TWS - Online Micro-Certificate: Tall Wood Structures": 941,
-    "ZCBS - Online Micro-Certificate: Zero Carbon Building Solutions": 1116,
-    "FCMo - Online Micro-Certificate: Forest Carbon Modelling": 2991
-}
-
 CATALOG_COL_ID_NAME_MAP = {
     "student_name": "Full Name",
     "student_id": "Student Catalog ID",
@@ -94,7 +70,7 @@ CATALOG_COL_ID_NAME_MAP = {
     "requirement_details": "Completion Percentage",
     "registration_date": "Registration Date",
     "enrollment_count": "Enrollment Count",
-    "last_enrollment_date": "Last Enrolment Date",
+    "last_enrollment_date": "Last Enrollment Date",
     "transcript": "Transcript",
     "custom_fields_home-address": "Home Address",
     "custom_fields_indigenous-self-declaration": "Self-Identify as Indigenous?",
@@ -191,20 +167,8 @@ def find_program_dropdown_option(
     
     return False
 
-def set_catalog_filters_via_ui(
-    driver: SeleniumDriver,
-    programs: list[str]
-):
-    """ 
-    Filters for the provided `programs` by finding and selecting the corresponding catalogs on the Catalog Analytics filter UI. 
-    `programs` should be limited to at most 20 elements. Raises an exception is more than 20 elements are provided.
-    """
-
-    if len(programs) > 20:
-        logger.critical("An error occurred while filtering programs via the UI. Cannot filter for more than 20 programs at once.")
-        raise Exception("Cannot filter for more than 20 programs at once.")
-    
-    # click the "Filter" button and wait until the dropdown menu is visible
+def open_filters_modal(driver: SeleniumDriver):
+    """ Attempts to open the Analytics filtering modal on the current page by clicking the "Filters" button. If no "Filters" button exists on the current page, logs a critical error and raises and exception. """
     try:
         wait = WebDriverWait(driver, 10)
         button = wait.until(EC.visibility_of_element_located((By.XPATH,  "//button[@data-automation='Filter__Show__Filters__Button']")))
@@ -220,6 +184,40 @@ def set_catalog_filters_via_ui(
         raise
 
     button.click()
+
+
+def set_catalog_filters_via_ui(
+    driver: SeleniumDriver,
+    programs: list[str]
+):
+    """ 
+    Filters for the provided `programs` by finding and selecting the corresponding catalogs on the Catalog Analytics filter UI. 
+    `programs` should be limited to at most 20 elements. Raises an exception is more than 20 elements are provided.
+    """
+
+    if len(programs) > 20:
+        logger.critical("An error occurred while filtering programs via the UI. Cannot filter for more than 20 programs at once.")
+        raise Exception("Cannot filter for more than 20 programs at once.")
+    
+    # click the "Filter" button and wait until the dropdown menu is visible
+    # try:
+    #     wait = WebDriverWait(driver, 10)
+    #     button = wait.until(EC.visibility_of_element_located((By.XPATH,  "//button[@data-automation='Filter__Show__Filters__Button']")))
+    # except TimeoutException:
+    #     logger.critical("Could not find \"Filter\" button. Unable to proceed with scraping.")
+    #     raise
+    # except Exception as e:
+    #     logger.critical(
+    #         "Failed to proceed with filtering.\n> %s %s",
+    #         e.__class__.__name__,
+    #         str(e)
+    #     )
+    #     raise
+
+    # button.click()
+    open_filters_modal(driver)
+
+    wait = WebDriverWait(driver, 10)
 
     dropdown_menu = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[data-automation="AnalyticsPage__Filter__Catalog"]')))
     dropdown_menu.click()

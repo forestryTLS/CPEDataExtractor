@@ -1,4 +1,3 @@
-from datetime import date, timedelta
 from enum import StrEnum
 
 class bcolors:
@@ -11,16 +10,6 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-
-ENROLMENTS_DATE_PRESET_KEY = 'enrollment_date_preset'
-ENROLMENTS_DATE_FROM_KEY = 'enrollment_date_from'
-ENROLMENTS_DATE_TO_KEY = 'enrollment_date_to'
-
-USERS_DATE_PRESET_KEY = 'registration_date_preset'
-USERS_DATE_FROM_KEY = 'registration_date_from'
-USERS_DATE_TO_KEY = 'registration_date_to'
-
-ENROLLMENT_STATUSES = ['Active', 'Completed', 'Concluded', 'Dropped']
 
 CERTIFICATE_PROGRAMS = [
     "CBBD", 
@@ -46,59 +35,7 @@ CERTIFICATE_PROGRAMS = [
     "FCMo"
 ]
 
-DEFAULT_CREATION_DATE_FROM = (date.today() - timedelta(days=7)).strftime("%Y-%m-%d")
-DEFAULT_CREATION_DATE_TO = date.today().strftime("%Y-%m-%d")
-
-DEFAULT_ENROLMENTS_SETTINGS_OBJECT = {
-    "filter": {
-        "account_ids": [],
-        "product_ids": [],
-        "product_statuses": [],
-        "student_ids": [],
-        ENROLMENTS_DATE_PRESET_KEY: "past_week",
-        ENROLMENTS_DATE_FROM_KEY: DEFAULT_CREATION_DATE_FROM,
-        ENROLMENTS_DATE_TO_KEY: DEFAULT_CREATION_DATE_TO,
-        "enrollment_statuses": [],
-        "completion_date_preset": "all_time",
-        "completion_date_from": "",
-        "completion_date_to": "",
-        "enrollment_completion_percentage_min": "",
-        "enrollment_completion_percentage_max": ""
-    },
-    "page": 0,
-    "pageSize": 10,
-    "search": "",
-    "sortBy": "enrollment_date",
-    "sortDirection": "desc",
-    "wideContent": True,
-    "showChart": False,
-    "baseAccountId": 512
-}
-
-DEFAULT_USERS_SETTINGS_OBJECT = {
-    "filter": {
-        "account_ids": [],
-        "student_ids": [],
-        "enrollment_count_min": "",
-        "enrollment_count_max": "",
-        "last_enrollment_date_preset": "all_time",
-        "last_enrollment_date_from": "",
-        "last_enrollment_date_to": "",
-        USERS_DATE_PRESET_KEY: "past_week",
-        USERS_DATE_FROM_KEY: DEFAULT_CREATION_DATE_FROM,
-        USERS_DATE_TO_KEY: DEFAULT_CREATION_DATE_TO
-    },
-    "page": 0,
-    "pageSize": 10,
-    "search": "",
-    "sortBy": "registration_date",
-    "sortDirection": "desc",
-    "wideContent": False,
-    "showChart": True,
-    "baseAccountId": 512
-}
-
-EXCELS = {
+PROGRAM_TO_EXCEL_MAP = {
     "CBBD": ("Circular Bioeconomy Business Development - Registrations.xlsx"),
     "CACE": ("Climate Action and Community Engagement - Registrations.xlsx"),
     "CVA": ("Climate Vulnerability and Adaptation - Registrations.xlsx"),
@@ -141,6 +78,13 @@ class ReportColumn(StrEnum):
     PROGRAM_EXPIRY = "Program Expiry Date"
     SINGLE_LISTING_ID = "Listing ID"
     CATALOG_NAME = "Catalog"
+    COMPLETION_STATUS = "Completion Status (if full certificate)"
+    RECEIVED_FSG = "Received FSG?"
+    PROMO_CODE = "Promotion Code (if applicable)"
+    GRANT_RECEIVED = "Grant Amount Received"
+    AMOUNT_PAID = "Amount Paid to Forestry"
+    CERTIFICATE_STATUS = "Certificate Status"
+    NOTES = "Notes"
 
 REPORT_COLUMNS_TO_POPULATE = [
     ReportColumn.FULL_NAME,

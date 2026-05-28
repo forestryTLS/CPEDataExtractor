@@ -109,7 +109,7 @@ def append_df_data_to_excel(
 
         return False
     
-    if len(df) == 0:
+    if not isinstance(df, pd.DataFrame) or len(df) == 0:
         logger.warning(f"No data to append to file \"{excel_file.absolute()}\" (Sheet: {sheet_name}).")
         return False
 

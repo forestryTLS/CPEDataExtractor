@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 from utils.common import (
     ReportColumn,
-    EXCELS,
+    PROGRAM_TO_EXCEL_MAP,
     HEADER_ROW_IDX,
     REPORT_COLUMNS_TO_POPULATE,
     CERTIFICATE_PROGRAMS
@@ -29,7 +29,8 @@ from utils.extract import (
     login_to_canvas_catalog,
     set_catalog_filters_via_ui,
     extract_table_data_to_df,
-    click_apply_filters
+    click_apply_filters,
+    open_filters_modal
 )
 
 from utils.logging import CustomStreamHandler
@@ -76,8 +77,6 @@ logging.basicConfig(
     handlers=[file_handler, stream_handler]
 )
 
-logger.info("====== STARTING CATALOG DATA EXTRACTION ======")
-
 # ===========================
 # REGISTRATION FOLDER PARSING
 # ===========================
@@ -102,11 +101,11 @@ users_file_path = raw_data_dir / "user_data.xlsx"
 
 if not enrollments_file_path.is_file():
     logger.warning(f"No enrollments Excel file found. Creating file at \"{enrollments_file_path.absolute()}\".")
-    enrollments_file_path.touch()
+    pd.DataFrame().to_excel(enrollments_file_path) # quick way to create a valid Excel file
 
 if not users_file_path.is_file():
     logger.warning(f"No users Excel file found. Creating file at \"{users_file_path.absolute()}\".")
-    users_file_path.touch()
+    pd.DataFrame().to_excel(users_file_path)
 
 # =====================
 # CLI ARGUMENT PARSING
@@ -114,12 +113,13 @@ if not users_file_path.is_file():
 parser = argparse.ArgumentParser(description='This Script uses Selenium to login to Canvas Catalog and extracts enrollments + users')
 
 # Optional command line arguments
-parser.add_argument('--mfe', action='store_true', help='Manually Filter Enrollments. Include this argument if you want the bot to pause when filtering enrollments')
-parser.add_argument('--mfu', action='store_true', help='Manually Filter Users. Include this argument if you want the bot to pause when filtering users')
-parser.add_argument('--program', nargs='+', choices=CERTIFICATE_PROGRAMS, default=CERTIFICATE_PROGRAMS, type=str, help='Include courses that you want selected. Example: --courses CACE CNR CVA. Defaults to all courses')
-#parser.add_argument('--status', nargs='+', choices=ENROLLMENT_STATUSES, default=ENROLLMENT_STATUSES, type=str.capitalize, help='Indicate which enrollment statuses you wish to filter for. Example: --status Active Completed. Defaults to any status.')
+parser.add_argument('--mfe', action='store_true', help='Manually Filter Enrollments. Include this argument if you want the script to pause when filtering enrollments')
+parser.add_argument('--mfu', action='store_true', help='Manually Filter Users. Include this argument if you want the script to pause when filtering users')
+parser.add_argument('--program', nargs='+', choices=CERTIFICATE_PROGRAMS, default=CERTIFICATE_PROGRAMS, type=str, help='Include programs that you want selected. Example: --courses CACE CNR CVA. Defaults to all programs')
 
 args = parser.parse_args()
+
+logger.info("====== STARTING CATALOG DATA EXTRACTION ======")
 
 optional_arguments = []
 
@@ -150,12 +150,17 @@ with initialize_selenium_driver(browser) as driver:
         next_url="https://courses.cpe.ubc.ca/analytics/users"
     )
 
+    # ++++++
     # USERS
-    # +++++++
-    # print("\n")
-    # print("-" * 30)
-    # print("RETRIEVING USER DATA")
-    # print("-" * 30)
+    # ++++++
+    if args.mfu:
+        open_filters_modal(driver)
+
+        logger.info("Waiting for user to manually define Catalog user record filters via UI.")
+
+        input("Please apply any additional filters (e.g. custom date range) and press enter in the terminal to continue...")
+        
+        click_apply_filters(driver)
 
     logger.info("Scraping data from Catalog Analytics \"Users\" table.")
 
@@ -181,13 +186,9 @@ with initialize_selenium_driver(browser) as driver:
     except TimeoutException:
         logger.warning("No data found in \"Users\" Catalog Analytics tab. No data will be appended to the users Excel file.")
 
-
+    # +++++++++++
     # ENROLLMENTS
-    # ++++++++++++
-    # print("\n")
-    # print("-" * 30)
-    # print("RETRIEVING ENROLLMENTS DATA")
-    # print("-" * 30)
+    # +++++++++++
 
     logger.info("Scraping data from Catalog Analytics \"Enrollments\" table.")
 
@@ -222,7 +223,7 @@ with initialize_selenium_driver(browser) as driver:
         set_catalog_filters_via_ui(driver, programs)
 
         if args.mfe:
-            logger.info("Waiting for user to manually define enrollment record filters via UI.")
+            logger.info("Waiting for user to manually define Catalog enrollment record filters via UI.")
             input("Please apply any additional filters (e.g. custom date range) and press enter in the terminal to continue...")
 
         click_apply_filters(driver)
@@ -233,13 +234,16 @@ with initialize_selenium_driver(browser) as driver:
             ignore_index=True
         )
 
+    # +++++++++++++++++++++++++++++++++++
+    # DISTRIBUTE DATA TO INTERNAL RECORDS
+    # +++++++++++++++++++++++++++++++++++
     if df_all_enrollments.shape[0] > 0:
         df_all_enrollments = df_all_enrollments.replace(r"(?i)No Data.*", pd.NA, regex=True)
         df_all_enrollments = df_all_enrollments.fillna("")
 
         # account for cases where student drops, then re-registers
         df_all_enrollments = df_all_enrollments.drop_duplicates(
-            [ReportColumn.USER_ID, "Listing ID"],
+            [str(ReportColumn.USER_ID), "Listing ID"],
             keep='first' # Catalog always renders records from most to least recent
         )
 
@@ -252,11 +256,6 @@ with initialize_selenium_driver(browser) as driver:
     else:
         logger.warning("No data found in \"Enrollments\" Catalog Analytics tab. No data will be appended to the enrollment Excel file.")
 
-    # print("\n")
-    # print("-" * 30)
-    # print("DISTRIBUTING DATA")
-    # print("-" * 30)
-
     logger.info("Distributing data to corresponding Excel files.")
 
     if ENROLLMENT_STATUS_KEY not in df_all_enrollments.columns:
@@ -267,7 +266,7 @@ with initialize_selenium_driver(browser) as driver:
     unique_sessions = df_all_enrollments["Session"].unique()
 
     for program in unique_programs:
-        excel_path = registration_folder_path / EXCELS[program]
+        excel_path = registration_folder_path / PROGRAM_TO_EXCEL_MAP[program]
 
         if not excel_path.is_file():
             logger.error(f"The file \"{excel_path.absolute()}\" does not exist. Skipping distribution of data for program {program}.")
@@ -296,7 +295,7 @@ with initialize_selenium_driver(browser) as driver:
                 lambda series: distribute.fill_null_columns_from_first(
                     series,
                     df_all_users,
-                    match_key=ReportColumn.USER_ID
+                    match_key=str(ReportColumn.USER_ID)
                 ),
                 axis=1,
                 result_type='broadcast'
@@ -315,33 +314,34 @@ with initialize_selenium_driver(browser) as driver:
 
             logger.info(f"New records to append - VALID: {df_new_valid.shape[0]}, DROPPED: {df_new_dropped.shape[0]}.")
 
-            # =======================================
-            # Read and combine existing data (if any)
-            # =======================================
+            # ================================================
+            # Read and combine existing dropped data (if any)
+            # ================================================
             session_year, session_season = str(session).split(" ")
             shortened_session_name = f"{session_year}{session_season[0]}"
 
             dropped_sheet = f"Dropped ({shortened_session_name})"
 
             if df_new_dropped.shape[0] > 0:
+                ordered_columns = df_new_dropped.columns.to_list()
 
                 target_columns = {
-                    ReportColumn.FULL_NAME,
-                    ReportColumn.EMAIL_ADDRESS,
-                    ReportColumn.ORGANIZATION,
-                    ReportColumn.TITLE,
-                    ReportColumn.USER_ID,
-                    ReportColumn.SINGLE_LISTING_ID,
-                    ReportColumn.CATALOG_NAME
+                    str(ReportColumn.FULL_NAME),
+                    str(ReportColumn.EMAIL_ADDRESS),
+                    str(ReportColumn.ORGANIZATION),
+                    str(ReportColumn.TITLE),
+                    str(ReportColumn.USER_ID),
+                    str(ReportColumn.SINGLE_LISTING_ID),
+                    str(ReportColumn.CATALOG_NAME)
                 }
 
-                # ensure we only filter for columns that exist in the df
-                filter_for_columns = (
-                    set(df_new_dropped.columns)
-                    & target_columns
-                )
+                # filter for the target columns while ensuring order is kept
+                for column in ordered_columns:
+                    if column in target_columns:
+                        ordered_columns.append(column)
 
-                df_new_dropped = df_new_dropped[list(filter_for_columns)]
+                #df_new_dropped = df_new_dropped[list(filter_for_columns)]
+                df_new_dropped = df_new_dropped[filtered_columns]
 
                 distribute.append_df_data_to_excel(
                     df_new_dropped,
@@ -349,9 +349,9 @@ with initialize_selenium_driver(browser) as driver:
                     dropped_sheet,
                     header_row_idx=HEADER_ROW_IDX,
                     drop_duplicates_indices=[
-                        ReportColumn.FULL_NAME,
-                        ReportColumn.EMAIL_ADDRESS,
-                        ReportColumn.SINGLE_LISTING_ID
+                        str(ReportColumn.FULL_NAME),
+                        str(ReportColumn.EMAIL_ADDRESS),
+                        str(ReportColumn.SINGLE_LISTING_ID)
                     ]
                 )
 
@@ -363,21 +363,28 @@ with initialize_selenium_driver(browser) as driver:
                     excel_path,
                     sheet_name=session,
                     dtype={
-                        ReportColumn.USER_ID: str,
-                        ReportColumn.LISTING_IDS: str,
-                        ReportColumn.PHONE_NUMBER: str,
-                        ReportColumn.PROGRAM_START: object,
-                        ReportColumn.PROGRAM_EXPIRY: object
+                        str(ReportColumn.USER_ID): str,
+                        str(ReportColumn.LISTING_IDS): str,
+                        str(ReportColumn.PHONE_NUMBER): str,
+                        str(ReportColumn.PROGRAM_START): object,
+                        str(ReportColumn.PROGRAM_EXPIRY): object
                     },
                     keep_default_na=False,
                     header=HEADER_ROW_IDX
                 )
+
+                if df_all_enrollments.shape[0] == 0 \
+                or not all(
+                    common_column in df_existing_enrollments.columns
+                    for common_column in [ReportColumn.FULL_NAME, ReportColumn.EMAIL_ADDRESS, ReportColumn.ORGANIZATION]
+                ):
+                    logger.warning(f"Sheet {session} was found in \"{excel_path.absolute()}\", however, it is either empty or doesn't contain the required columns. Its data will be fully replaced.")
+                    df_existing_enrollments = None
             except ValueError:
                 df_existing_enrollments = None
 
-                logger.warning(f"Could not find sheet \"{session}\" for program {program} in \"{excel_path.absolute()}\". A new sheet will be created.")
-
             if df_existing_enrollments is not None:
+
                 df_existing_enrollments: pd.DataFrame
 
                 # CHECK: Ensure "Student Catalog ID" and "Listing IDs" are valid columns in existing data
@@ -386,7 +393,7 @@ with initialize_selenium_driver(browser) as driver:
 
                     df_existing_enrollments.insert(
                         len(df_existing_enrollments.columns),
-                        column=ReportColumn.USER_ID,
+                        column=str(ReportColumn.USER_ID),
                         value=""
                     )
 
@@ -395,29 +402,31 @@ with initialize_selenium_driver(browser) as driver:
                     
                     df_existing_enrollments.insert(
                         len(df_existing_enrollments.columns),
-                        column=ReportColumn.LISTING_IDS,
+                        column=str(ReportColumn.LISTING_IDS),
                         value=""
                     )
+
+                added_rows = []
 
                 # Merge new enrollments into existing data
                 for _, new_data in df_new_valid.iterrows():
                     df_found_record = df_existing_enrollments[
-                        df_existing_enrollments[ReportColumn.USER_ID] == new_data[ReportColumn.USER_ID]
+                        df_existing_enrollments[str(ReportColumn.USER_ID)] == new_data[str(ReportColumn.USER_ID)]
                     ]
 
                     if df_found_record.shape[0] == 0:
                         df_found_record = df_existing_enrollments[
-                            df_existing_enrollments[ReportColumn.EMAIL_ADDRESS].str.strip().str.lower()
-                            == str(new_data[ReportColumn.EMAIL_ADDRESS]).strip().lower()
+                            df_existing_enrollments[str(ReportColumn.EMAIL_ADDRESS)].str.strip().str.lower()
+                            == str(new_data[str(ReportColumn.EMAIL_ADDRESS)]).strip().lower()
                         ]
 
                     if df_found_record.shape[0] > 0:
                         # if matching record exists, update it
-                        s_found_record = pd.Series = df_found_record.iloc[0, :].copy()
+                        s_found_record = df_found_record.iloc[0, :].copy()
 
                         record_listing_ids = (
-                            str(s_found_record.at[ReportColumn.LISTING_IDS]).strip().split(";")
-                            if s_found_record.at[ReportColumn.LISTING_IDS]
+                            str(s_found_record.at[str(ReportColumn.LISTING_IDS)]).strip().split(";")
+                            if s_found_record.at[str(ReportColumn.LISTING_IDS)]
                             else []
                         )
 
@@ -426,7 +435,7 @@ with initialize_selenium_driver(browser) as driver:
                         if new_listing_id not in record_listing_ids:
                             record_listing_ids.append(new_listing_id)
 
-                        s_found_record.at[ReportColumn.LISTING_IDS] = ";".join(record_listing_ids)
+                        s_found_record.at[str(ReportColumn.LISTING_IDS)] = ";".join(record_listing_ids)
 
                         # Check that:
                         # 1. The column exists in the corresponding registration sheet table
@@ -440,35 +449,33 @@ with initialize_selenium_driver(browser) as driver:
                         
                         df_existing_enrollments.iloc[s_found_record.name] = s_found_record
                     else:
-                        # otherwise, append data into new row
-                        df_new_row = pd.DataFrame(
-                            new_data,
-                            columns=df_existing_enrollments.columns
-                        )
+                        new_row = new_data.copy()
 
-                        df_new_row.at[0, ReportColumn.LISTING_IDS] = new_data["Listing ID"]
+                        for column in new_row.index:
+                            if column not in df_existing_enrollments.columns:
+                                new_row = new_row.drop(column)
 
-                        df_existing_enrollments = pd.concat(
-                            [df_existing_enrollments, df_new_row],
-                            ignore_index=True
-                        )
+                        # add the "Listing IDs" column data (not present in Catalog enrollment data)
+                        new_row.at[str(ReportColumn.LISTING_IDS)] = new_data[str(ReportColumn.SINGLE_LISTING_ID)]
+
+                        df_existing_enrollments.loc[df_existing_enrollments.shape[0]] = new_row
                 
                 # Update records if corresponding dropped enrollments exist
                 for _, drop_data in df_new_dropped.iterrows():
                     df_found_record = df_existing_enrollments[
-                        df_existing_enrollments[ReportColumn.USER_ID] == drop_data[ReportColumn.USER_ID]
+                        df_existing_enrollments[str(ReportColumn.USER_ID)] == drop_data[str(ReportColumn.USER_ID)]
                     ]
 
                     if df_found_record.shape[0] == 0:
                         df_found_record = df_existing_enrollments[
-                            df_existing_enrollments[ReportColumn.EMAIL_ADDRESS].str.strip().str.lower() 
-                            == str(drop_data[ReportColumn.EMAIL_ADDRESS]).strip().lower()
+                            df_existing_enrollments[str(ReportColumn.EMAIL_ADDRESS)].str.strip().str.lower() 
+                            == str(drop_data[str(ReportColumn.EMAIL_ADDRESS)]).strip().lower()
                         ]
                     
                     if df_found_record.shape[0] > 0:
                         s_found_record: pd.Series = df_found_record.iloc[0, :]
 
-                        record_listing_ids = str(s_found_record.at[ReportColumn.LISTING_IDS]).strip().split(";")
+                        record_listing_ids = str(s_found_record.at[str(ReportColumn.LISTING_IDS)]).strip().split(";")
 
                         try:
                             drop_listing_id = str(int(drop_data["Listing ID"])).strip()
@@ -488,39 +495,91 @@ with initialize_selenium_driver(browser) as driver:
                                 logger.debug(f"Student {drop_data['Full Name']} dropped all courses in {session} {program}. Their enrollment record will be removed.")
                                 df_existing_enrollments = df_existing_enrollments.drop(s_found_record.name)
             else:
-                df_existing_enrollments = df_new_valid
+                # ensure data for the current program-session combination exists
+                if df_new_valid.shape[0] > 0:
+                    logger.warning(f"Could not find sheet \"{session}\" for program {program} in \"{excel_path.absolute()}\". A new sheet will be created.")
 
-                program_lowered = str(program).lower().strip()
+                    # use enrollment data directly to create new table
+                    df_existing_enrollments = df_new_valid
 
-                # keep only necessary columns
-                target_columns = {
-                    ReportColumn.FULL_NAME,
-                    ReportColumn.ORGANIZATION,
-                    ReportColumn.TITLE,
-                    ReportColumn.EMAIL_ADDRESS,
-                    ReportColumn.PHONE_NUMBER,
-                    ReportColumn.MAILING_ADDRESS if program_lowered == 'cnr' else ReportColumn.HOME_ADDRESS,
-                    ReportColumn.IS_ALUM,
-                }
+                    
+                    unique_student_catalog_ids = list(df_existing_enrollments[str(ReportColumn.USER_ID)].unique())
+                    student_id_to_listing_ids_map = {}
 
-                if program_lowered == 'cnr':
-                    target_columns.update((
-                        ReportColumn.MAILING_ADDRESS,
-                        ReportColumn.INDIGENOUS_IDENTITY
-                    ))
-                elif program_lowered == 'fmp':
-                    target_columns.update((
-                        ReportColumn.DEGREES_EXPERIENCE
-                    ))
+                    df_existing_enrollments.insert(len(df_existing_enrollments.columns), str(ReportColumn.LISTING_IDS), "")
 
+                    # group each student's listing IDs into a list mapped to their student ID
+                    for student_id in unique_student_catalog_ids:
+                        current_student_lisitng_ids = list(df_existing_enrollments[
+                            df_existing_enrollments[str(ReportColumn.USER_ID)] == student_id
+                        ][str(ReportColumn.SINGLE_LISTING_ID)])
 
-                # ensure we only filter for columns that exist in the df
-                filter_for_columns = (
-                    set(df_existing_enrollments.columns)
-                    & target_columns
-                )
+                        student_id_to_listing_ids_map[student_id] = current_student_lisitng_ids
 
-                df_existing_enrollments = df_existing_enrollments[list(filter_for_columns)]
+                    def populate_listing_ids_column(series: pd.Series):
+                        current_user_id = series.at[str(ReportColumn.USER_ID)]
+
+                        if current_user_id in student_id_to_listing_ids_map:
+                            series.at[str(ReportColumn.LISTING_IDS)] = ";".join(student_id_to_listing_ids_map[current_user_id])
+
+                        return series
+                    
+                    df_existing_enrollments = df_existing_enrollments.apply(
+                       populate_listing_ids_column,
+                       axis=1,
+                       result_type='broadcast'
+                    )
+
+                    ordered_columns = df_existing_enrollments.columns.to_list()
+
+                    program_lowered = str(program).lower().strip()
+
+                    # keep only necessary columns
+                    target_columns = {
+                        str(ReportColumn.FULL_NAME),
+                        str(ReportColumn.ORGANIZATION),
+                        str(ReportColumn.TITLE),
+                        str(ReportColumn.EMAIL_ADDRESS),
+                        str(ReportColumn.PHONE_NUMBER),
+                        str(ReportColumn.MAILING_ADDRESS) if program_lowered == 'cnr' else str(ReportColumn.HOME_ADDRESS),
+                        str(ReportColumn.IS_ALUM),
+                        str(ReportColumn.USER_ID),
+                        str(ReportColumn.LISTING_IDS)
+                    }
+
+                    # conditionally include program-specific columns
+                    if program_lowered == 'cnr':
+                        target_columns.update((
+                            str(ReportColumn.INDIGENOUS_IDENTITY)
+                        ))
+                    elif program_lowered == 'fmp':
+                        target_columns.update((
+                            str(ReportColumn.DEGREES_EXPERIENCE)
+                        ))
+
+                    filtered_columns = []
+
+                    for column in ordered_columns:
+                        if column in target_columns:
+                            filtered_columns.append(column)
+
+                    df_existing_enrollments = df_existing_enrollments[filtered_columns]
+                    df_existing_enrollments = df_existing_enrollments.drop_duplicates()
+
+                    # insert manually populated columns with empty cells
+                    for col in [
+                        ReportColumn.PROGRAM_START,
+                        ReportColumn.PROGRAM_EXPIRY,
+                        ReportColumn.COMPLETION_STATUS,
+                        ReportColumn.RECEIVED_FSG,
+                        ReportColumn.PROMO_CODE,
+                        ReportColumn.GRANT_RECEIVED,
+                        ReportColumn.AMOUNT_PAID,
+                        ReportColumn.CERTIFICATE_STATUS,
+                        ReportColumn.NOTES
+                    ]:
+                        df_existing_enrollments.insert(len(df_existing_enrollments.columns), col, "")
+                    
             
             logger.info(f"Saving enrollment data for {session} {program} to file.")
 
