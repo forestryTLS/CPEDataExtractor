@@ -323,7 +323,7 @@ def check_page_source(driver, option):
     return False
 
 @print_decorator
-def filter_records_through_session_storage(programs: list[str], statuses: list[str]):
+def filter_records_through_session_storage(programs: list[str], statuses: list[str] = ENROLLMENT_STATUSES):
     """ Adds the selected program filters to the session storage and navigates to enrolments page. """
 
     if not programs or len(programs) == 0:
@@ -521,7 +521,8 @@ def extract_table_data(table_data):
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'table')))
     except TimeoutException:
         print("NO DATA FOUND.")
-        exit()
+        #exit()
+        return
     
     soup = BeautifulSoup(driver.page_source.encode("utf-8"), 'html.parser')
 
@@ -558,7 +559,7 @@ def extract_table_data(table_data):
                         print(bcolors.WARNING + f"WARNING: Could not process data for row \"{column_text_preview}...\". Skipping." + bcolors.ENDC)
                         continue
                 elif label == 'product_name':
-                    # try to find the <span> tag that contains the full name (only inserted when text istruncated)
+                    # try to find the <span> tag that contains the full name (only inserted when text is truncated)
                     # if not found, there is no truncation, thus <a> tag text should have full name
                     span_listing_name = td.select_one("a span[class*=screenReaderContent]")
                     

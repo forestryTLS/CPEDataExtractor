@@ -1,7 +1,7 @@
 GREENC="\033[32m"
 ENDC="\033[0m"
 
-TARGET_BRANCH="pre-enrolment-table"
+TARGET_BRANCH="main"
 CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
 if [ $CURRENT_BRANCH != $TARGET_BRANCH ]; then
@@ -13,7 +13,7 @@ echo -e "Activating virtual enviornment...\n"
 source venv/Scripts/activate
 
 echo -e "Running script...\n"
-python get_data.py --status Active Completed Concluded
+python main.py
 
 echo -e "Deactivating virtual environment...\n"
 deactivate
