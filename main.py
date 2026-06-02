@@ -335,10 +335,12 @@ with initialize_selenium_driver(browser) as driver:
                     str(ReportColumn.CATALOG_NAME)
                 }
 
+                filtered_columns = []
+
                 # filter for the target columns while ensuring order is kept
                 for column in ordered_columns:
                     if column in target_columns:
-                        ordered_columns.append(column)
+                        filtered_columns.append(column)
 
                 #df_new_dropped = df_new_dropped[list(filter_for_columns)]
                 df_new_dropped = df_new_dropped[filtered_columns]
