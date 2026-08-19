@@ -254,7 +254,8 @@ with initialize_selenium_driver(browser) as driver:
             enrollments_file_path
         )
     else:
-        logger.warning("No data found in \"Enrollments\" Catalog Analytics tab. No data will be appended to the enrollment Excel file.")
+        logger.warning("No data found in \"Enrollments\" Catalog Analytics tab.")
+        exit(0)
 
     logger.info("Distributing data to corresponding Excel files.")
 

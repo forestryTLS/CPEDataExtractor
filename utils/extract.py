@@ -18,6 +18,8 @@ from bs4.element import Tag
 
 import pandas as pd
 
+from utils.common import ReportColumn
+
 RE_ID_EMAIL_SPLIT = re.compile(r'\s*(?:Email:|\|)\s*', re.I)
 RE_CATALOG_ID_SEARCH = re.compile(r'(#|ID:\s)(?P<id>\d+)')
 RE_CATALOG_PROG_NAME_SPLIT = re.compile(r'(?:\s*\-*\s)')
@@ -47,17 +49,18 @@ FULL_PROGRAM_CATALOG_NAMES = {
     "FAS - ": "FAS - Online Micro-Certificate: Foundations of Advanced Silviculture",
     "CLF - ": "CLF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Liquid Fuels",
     "CGF - ": "CGF - Online Micro-Certificate: Advanced Life Cycle Assessment of Clean Gaseous Fuels",
-    "FCMo - ": "FCMo - Online Micro-Certificate: Forest Carbon Modelling"
+    "FCMo - ": "FCMo - Online Micro-Certificate: Forest Carbon Modelling",
+    "FSD - ": "FSD - Online Micro-Certificate: Forest & Stand Development"
 }
 
 CATALOG_COL_ID_NAME_MAP = {
-    "student_name": "Full Name",
-    "student_id": "Student Catalog ID",
-    "student_email": "Email Address",
-    "account_name": "Catalog",
+    "student_name": ReportColumn.FULL_NAME,
+    "student_id": ReportColumn.USER_ID,
+    "student_email": ReportColumn.EMAIL_ADDRESS,
+    "account_name": ReportColumn.CATALOG_NAME,
     "program_name": "Program",
     "product_name": "Listing",
-    "listing_id": "Listing ID",
+    "listing_id": ReportColumn.SINGLE_LISTING_ID,
     "session": "Session",
     "product_status": "Listing Status",
     "canvas_course_id": "Canvas Course ID",
@@ -65,20 +68,20 @@ CATALOG_COL_ID_NAME_MAP = {
     "enrollment_id": "Enrollment ID",
     "enrollment_status": "Enrollment Status",
     "enrollment_date": "Enrollment Date",
-    "custom_fields_relevant-degree-or-experience": "Relevant Degrees or Experience",
+    "custom_fields_relevant-degree-or-experience": ReportColumn.DEGREES_EXPERIENCE,
     "certificate_offered": "Certificate",
     "requirement_details": "Completion Percentage",
     "registration_date": "Registration Date",
     "enrollment_count": "Enrollment Count",
     "last_enrollment_date": "Last Enrollment Date",
     "transcript": "Transcript",
-    "custom_fields_home-address": "Home Address",
-    "custom_fields_indigenous-self-declaration": "Self-Identify as Indigenous?",
-    "custom_fields_is-fof-alum": "Is Forestry Alum?",
-    "custom_fields_mailing-address": "Mailing Address",
-    "custom_fields_organization": "Organization",
-    "custom_fields_phone-number": "Phone Number",
-    "custom_fields_title": "Title",
+    "custom_fields_home-address": ReportColumn.HOME_ADDRESS,
+    "custom_fields_indigenous-self-declaration": ReportColumn.INDIGENOUS_IDENTITY,
+    "custom_fields_is-fof-alum": ReportColumn.IS_ALUM,
+    "custom_fields_mailing-address": ReportColumn.MAILING_ADDRESS,
+    "custom_fields_organization": ReportColumn.ORGANIZATION,
+    "custom_fields_phone-number": ReportColumn.PHONE_NUMBER,
+    "custom_fields_title": ReportColumn.TITLE,
 }
 
 logger = logging.getLogger(__name__)
@@ -390,6 +393,14 @@ def extract_table_data_to_df(driver: SeleniumDriver):
 
                         if len(catalog_name_split) > 0:
                             row_data[CATALOG_COL_ID_NAME_MAP['program_name']] = catalog_name_split[0]
+                    elif label == 'custom_fields_indigenous-self-declaration':
+                        cell_text = str(td.text).strip().replace("\n", " ")
+
+                        row_data[CATALOG_COL_ID_NAME_MAP[label]] = (
+                            'Yes' if cell_text == '1' else
+                            'No' if cell_text == '0'
+                            else cell_text
+                        )
                     else:
                         if label in CATALOG_COL_ID_NAME_MAP:
                             row_data[CATALOG_COL_ID_NAME_MAP[label]] = str(td.text).strip().replace("\n", " ")              

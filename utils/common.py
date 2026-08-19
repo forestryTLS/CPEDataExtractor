@@ -32,7 +32,8 @@ CERTIFICATE_PROGRAMS = [
     "FAS",
     "CLF",
     "CGF",
-    "FCMo"
+    "FCMo",
+    "FSD"
 ]
 
 PROGRAM_TO_EXCEL_MAP = {
@@ -53,10 +54,11 @@ PROGRAM_TO_EXCEL_MAP = {
     "EBSC": ("Engineered Bamboo for Sustainable Construction - Registrations.xlsx"),
     "LCACF": ("Life Cycle Assessment of Clean Fuels - Registrations.xlsx"),
     "LLFM": ("Landscape Level Forest Modeling - Registrations.xlsx"),
-    "FAS": ("Foundations of Advanced Silviculture - Registration.xlsx"),
-    "CLF": ("Advanced Life Cycle Assessment of Clean Liquid Fuels - Registration.xlsx"),
-    "CGF": ("Advanced Life Cycle Assessment of Clean Gaseous Fuels - Registration.xlsx"),
+    "FAS": ("Foundations of Advanced Silviculture - Registrations.xlsx"),
+    "CLF": ("Advanced Life Cycle Assessment of Clean Liquid Fuels - Registrations.xlsx"),
+    "CGF": ("Advanced Life Cycle Assessment of Clean Gaseous Fuels - Registrations.xlsx"),
     "FCMo": ("Forest Carbon Modeling - Registrations.xlsx"),
+    "FSD": ("Forest Stand and Development - Registrations.xlsx"),
 }
 
 HEADER_ROW_IDX = 1

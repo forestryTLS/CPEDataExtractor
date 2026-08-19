@@ -93,7 +93,7 @@ def append_df_data_to_excel(
     drop_duplicates_indices: list | None = None,
     merge_into_existing: bool = True
 ) -> bool:
-    """ 
+    """
     Appends the data in the provided DataFrame to the specified file. Assumes: 
         1. `df` and data in `excel_file` use the same format and columns
         2. First row in `excel_file` is the header row
